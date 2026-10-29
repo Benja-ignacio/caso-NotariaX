@@ -106,7 +106,6 @@ fun Tramite.toEntities(): Triple<TramiteEntity, List<DocumentoEntity>, List<Even
     }
     return Triple(tramiteEntity, documentoEntities, historialEntities)
 }
-
 fun AvisoEntity.toDomain(): Aviso = Aviso(
     id = id,
     destinatarioId = destinatarioId,
@@ -115,7 +114,6 @@ fun AvisoEntity.toDomain(): Aviso = Aviso(
     fechaHora = fechaHora,
     leido = leido
 )
-
 fun Aviso.toEntity(): AvisoEntity = AvisoEntity(
     id = id,
     destinatarioId = destinatarioId,
