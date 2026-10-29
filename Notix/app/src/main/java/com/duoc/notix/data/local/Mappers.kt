@@ -104,7 +104,6 @@ fun Tramite.toEntities(): Triple<TramiteEntity, List<DocumentoEntity>, List<Even
             rol = it.rol
         )
     }
-
     return Triple(tramiteEntity, documentoEntities, historialEntities)
 }
 
