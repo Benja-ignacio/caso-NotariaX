@@ -87,7 +87,6 @@ fun Tramite.toEntities(): Triple<TramiteEntity, List<DocumentoEntity>, List<Even
         observacion = observacion,
         legibilidadConfirmada = legibilidadConfirmada
     )
-
     val documentoEntities = documentos.map {
         DocumentoEntity(
             tramiteId = id,
