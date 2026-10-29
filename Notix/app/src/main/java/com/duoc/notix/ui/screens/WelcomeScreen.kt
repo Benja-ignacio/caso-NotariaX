@@ -10,6 +10,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.duoc.notix.R
+
 @Composable
 fun WelcomeScreen(
     onNavigateToLogin: () -> Unit,
@@ -26,10 +30,18 @@ fun WelcomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_notaria_logo),
+                contentDescription = "Logo NotariaX",
+                modifier = Modifier.size(100.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Nombre de la App
             Text(
-                text = "NotiX",
-                fontSize = 44.sp,
+                text = "NotariaX",
+                fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF0F4C45) // Variable --green
             )

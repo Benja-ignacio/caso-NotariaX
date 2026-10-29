@@ -2,13 +2,32 @@ package com.duoc.notix.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,57 +38,28 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-// Si ya tienes un enum con los tipos de cuenta en RegisterScreen.kt, usa ese y borra este.
-enum class LoginProfile(val label: String) {
-    PERSONA("Persona natural"),
-    EMPRESA("Empresa"),
-    NOTARIO("Notario")
-}
-
-private val NotariaGreen = Color(0xFF0F4C45)
-private val NotariaGreenLight = Color(0xFFE8F1EF)
-private val FieldBorder = Color(0xFFCBD5D2)
-private val ErrorRed = Color(0xFFC0392B)
-private val TextDark = Color(0xFF12302B)
-private val TextMuted = Color(0xFF55615E)
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.duoc.notix.data.model.TipoCuenta
+import com.duoc.notix.data.model.Usuario
+import com.duoc.notix.ui.components.notixTextFieldColors
+import com.duoc.notix.ui.theme.NotixColors
+import com.duoc.notix.viewmodel.LoginViewModel
 
 @Composable
 fun LoginScreen(
-    onLoginPersona: () -> Unit,   // -> Mis trámites
-    onLoginEmpresa: () -> Unit,   // -> Mis trámites (mismo flujo que persona)
-    onLoginNotario: () -> Unit,   // -> Bandeja del notario
-    onCreateAccount: () -> Unit   // -> Crear cuenta
+    onLoginSuccess: (Usuario) -> Unit,
+    onCreateAccount: () -> Unit,
+    vm: LoginViewModel = viewModel()
 ) {
-    var profile by remember { mutableStateOf(LoginProfile.PERSONA) }
-    var email by remember { mutableStateOf("ana.demo@notariax.test") }
+    var perfil by remember { mutableStateOf(TipoCuenta.PERSONA) }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var showPassword by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var verClave by remember { mutableStateOf(false) }
 
-    val emailLabel = when (profile) {
-        LoginProfile.PERSONA -> "Correo de prueba"
-        LoginProfile.EMPRESA -> "Correo corporativo de prueba"
-        LoginProfile.NOTARIO -> "Correo institucional de prueba"
-    }
+    // Lo único que hace el botón: entregarle al ViewModel lo que escribió el usuario
+    fun ingresar() = vm.ingresar(perfil, email, password, onLoginSuccess)
 
-    fun submit() {
-        error = when {
-            email.isBlank() -> "Ingresa tu correo."
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() ->
-                "El correo no tiene un formato válido."
-            password.isBlank() -> "Ingresa tu contraseña."
-            else -> null
-        }
-        if (error != null) return
-        when (profile) {
-            LoginProfile.PERSONA -> onLoginPersona()
-            LoginProfile.EMPRESA -> onLoginEmpresa()
-            LoginProfile.NOTARIO -> onLoginNotario()
-        }
-    }
-
-    Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFF4F7F6)) {
+    Surface(modifier = Modifier.fillMaxSize(), color = NotixColors.Fondo) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -79,112 +69,112 @@ fun LoginScreen(
         ) {
             Spacer(Modifier.height(24.dp))
 
-            Text("NotariaX", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = NotariaGreen)
-
+            Text("NotariaX", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = NotixColors.Brand)
             Text(
                 "Tus trámites notariales, siempre a la vista",
-                fontSize = 26.sp,
-                lineHeight = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = NotariaGreen
+                fontSize = 26.sp, lineHeight = 32.sp,
+                fontWeight = FontWeight.Bold, color = NotixColors.Brand
             )
             Text(
                 "Carga documentos, firma y sigue cada trámite sin ir a la notaría ni llamar por teléfono.",
-                fontSize = 14.sp,
-                color = TextMuted
+                fontSize = 14.sp, color = NotixColors.Gris
             )
 
-            // Aviso de entorno de demostración
-            Card(
-                colors = CardDefaults.cardColors(containerColor = NotariaGreenLight),
-                shape = RoundedCornerShape(10.dp)
-            ) {
+            Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFE8F1EF)) {
                 Text(
-                    "Entorno de demostración. Todos los datos son ficticios. No se conecta con ninguna notaría real.",
-                    modifier = Modifier.padding(12.dp),
-                    fontSize = 12.sp,
-                    color = NotariaGreen
+                    "Tus trámites notariales, más simples y accesibles.",
+                    modifier = Modifier.padding(12.dp), fontSize = 12.sp, color = NotixColors.Brand
                 )
             }
 
-            // Selector de perfil: Persona | Empresa | Notario
-            ProfileSelector(selected = profile, onSelect = { profile = it; error = null })
+            // Selector Persona | Empresa | Notario
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(10.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                TipoCuenta.entries.forEach { tipo ->
+                    val seleccionado = tipo == perfil
+                    Surface(
+                        onClick = { perfil = tipo },
+                        modifier = Modifier.weight(1f).height(40.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (seleccionado) NotixColors.Brand else Color.Transparent
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                tipo.etiqueta,
+                                fontSize = 13.sp,
+                                fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Normal,
+                                color = if (seleccionado) Color.White else NotixColors.Brand
+                            )
+                        }
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text(emailLabel) },
+                label = { Text("Correo") },
+                placeholder = { Text("ej. ana.demo@notariax.test") },
                 singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                colors = notixTextFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextDark,
-                    unfocusedTextColor = TextDark,
-                    focusedLabelColor = NotariaGreen,
-                    unfocusedLabelColor = TextMuted,
-                    focusedBorderColor = NotariaGreen,
-                    unfocusedBorderColor = FieldBorder,
-                    cursorColor = NotariaGreen,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                )
+                modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Clave de prueba") },
+                label = { Text("Ingresa tu clave") },
                 singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                colors = notixTextFieldColors(),
                 visualTransformation =
-                    if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    if (verClave) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
-                    TextButton(onClick = { showPassword = !showPassword }) {
-                        Text(if (showPassword) "Ocultar" else "Ver", fontSize = 12.sp, color = NotariaGreen)
+                    TextButton(
+                        onClick = { verClave = !verClave },
+                        colors = ButtonDefaults.textButtonColors(contentColor = NotixColors.Brand)
+                    ) {
+                        Text(if (verClave) "Ocultar" else "Ver", fontSize = 12.sp)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextDark,
-                    unfocusedTextColor = TextDark,
-                    focusedLabelColor = NotariaGreen,
-                    unfocusedLabelColor = TextMuted,
-                    focusedBorderColor = NotariaGreen,
-                    unfocusedBorderColor = FieldBorder,
-                    cursorColor = NotariaGreen,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                )
+                modifier = Modifier.fillMaxWidth()
             )
 
-            error?.let {
-                Text(it, color = ErrorRed, fontSize = 12.sp)
-            }
-
             Button(
-                onClick = ::submit,
+                onClick = ::ingresar,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = NotariaGreen)
+                colors = ButtonDefaults.buttonColors(containerColor = NotixColors.Brand)
             ) {
                 Text("Ingresar", fontWeight = FontWeight.SemiBold)
             }
 
+            // Mensaje de error que viene del ViewModel (cuenta inexistente, clave incorrecta, etc.)
+            vm.error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            }
+
             OutlinedButton(
-                onClick = { submit() }, // simulación: mismo resultado que Ingresar
+                onClick = ::ingresar, // simulación: mismo resultado que Ingresar
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, FieldBorder)
+                border = BorderStroke(1.dp, NotixColors.Borde)
             ) {
-                Text("Simular huella digital", color = NotariaGreen)
+                Text("Simular huella digital", color = NotixColors.Brand)
             }
 
             Text(
                 "La verificación biométrica es solo simulación. No se usa el sensor del dispositivo.",
-                fontSize = 11.sp,
-                color = Color(0xFF7A8582),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                fontSize = 11.sp, color = NotixColors.Gris,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
             )
 
             Row(
@@ -192,42 +182,9 @@ fun LoginScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("¿No tienes cuenta?", fontSize = 13.sp, color = TextMuted)
+                Text("¿No tienes cuenta?", fontSize = 13.sp)
                 TextButton(onClick = onCreateAccount) {
-                    Text("Crear cuenta", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = NotariaGreen)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProfileSelector(
-    selected: LoginProfile,
-    onSelect: (LoginProfile) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(10.dp))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        LoginProfile.entries.forEach { p ->
-            val isSelected = p == selected
-            Surface(
-                onClick = { onSelect(p) },
-                modifier = Modifier.weight(1f).height(40.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = if (isSelected) NotariaGreen else Color.Transparent
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        p.label.substringBefore(" "), // "Persona", "Empresa", "Notario"
-                        fontSize = 13.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) Color.White else NotariaGreen
-                    )
+                    Text("Crear cuenta", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = NotixColors.Brand)
                 }
             }
         }

@@ -3,16 +3,19 @@ package com.duoc.notix.data.model
 data class Usuario(
     val id: String,
     val tipoCuenta: TipoCuenta,
-    val nombreCompleto: String,          // ficticio
-    val correo: String,                  // ficticio, ej: ana.demo@notariax.test
-    val contrasena: String,              // solo demo; nunca real
-    val run: String,                     // ficticio
-    val numeroDocumento: String,         // ficticio
-    val empresa: DatosEmpresa? = null    // solo si tipoCuenta == EMPRESA
+    val nombreCompleto: String,
+    val correo: String,
+    val contrasena: String,
+    val run: String,
+    val numeroDocumento: String,
+    val telefono: String,
+    val comuna: String,
+    val empresa: DatosEmpresa? = null,
+    val numeroNotaria: Int? = null
 )
 
 data class DatosEmpresa(
-    val razonSocial: String,             // ficticia, ej: "Empresa Demo SpA"
-    val rutEmpresa: String,              // ficticio
-    val cargoRepresentante: String       // ej: "Representante legal"
+    val razonSocial: String,
+    val rutEmpresa: String,
+    val giro: String
 )

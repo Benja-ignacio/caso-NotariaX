@@ -50,12 +50,16 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-enum class TipoCuenta(val etiqueta: String) {
-    Persona("Persona"),
-    Empresa("Empresa"),
-    Notario("Notario")
-}
+import com.duoc.notix.util.limpiarRut
+import com.duoc.notix.data.validation.RutValidator
+import com.duoc.notix.ui.components.DocumentoVisualTransformation
+import com.duoc.notix.ui.components.FormatoVisualTransformation
+import com.duoc.notix.ui.components.RutVisualTransformation
+import com.duoc.notix.util.limpiarDocumento
+import com.duoc.notix.data.model.TipoCuenta
+import com.duoc.notix.data.model.Usuario
+import com.duoc.notix.ui.components.notixTextFieldColors
+import com.duoc.notix.viewmodel.AuthViewModel
 
 private val Brand = Color(0xFF0F4C45)
 private val Fondo = Color(0xFFEEF4F1)
@@ -75,47 +79,14 @@ private class CampoDef(
     val teclado: KeyboardType = KeyboardType.Text,
     val ayuda: String? = null,
     val formato: (String) -> String = { it },
-    val validar: (String) -> String?
+    val validar: (String) -> String?,
+    val visual: VisualTransformation = VisualTransformation.None
 )
 
 private fun texto(min: Int, msg: String): (String) -> String? =
     { if (it.trim().length < min) msg else null }
 
 private fun soloDigitos(v: String, max: Int) = v.filter { it.isDigit() }.take(max)
-
-// 11111111-1 -> 11.111.111-1
-private fun formatearRut(raw: String): String {
-    val l = raw.filter { it.isDigit() || it == 'k' || it == 'K' }.uppercase().take(9)
-    if (l.length <= 1) return l
-    val cuerpo = l.dropLast(1).reversed().chunked(3).joinToString(".").reversed()
-    return "$cuerpo-${l.last()}"
-}
-
-// 123456789 -> 123.456.789
-private fun formatearDocumento(raw: String): String =
-    soloDigitos(raw, 9).chunked(3).joinToString(".")
-
-private fun dvDe(cuerpo: String): Char {
-    var suma = 0
-    var mult = 2
-    for (c in cuerpo.reversed()) {
-        suma += (c - '0') * mult
-        mult = if (mult == 7) 2 else mult + 1
-    }
-    return when (val r = 11 - suma % 11) {
-        11 -> '0'
-        10 -> 'K'
-        else -> '0' + r
-    }
-}
-
-private fun validarRut(valor: String, nombre: String): String? {
-    val l = valor.filter { it.isDigit() || it == 'k' || it == 'K' }.uppercase()
-    if (l.length < 8) return "Ingresa el $nombre completo, ej. 11.111.111-1."
-    val cuerpo = l.dropLast(1)
-    if (!cuerpo.all { it.isDigit() }) return "El $nombre no es válido."
-    return if (dvDe(cuerpo) == l.last()) null else "El dígito verificador del $nombre no coincide."
-}
 
 private fun validarDocumento(valor: String): String? =
     if (soloDigitos(valor, 9).length == 9) null else "Ingresa los 9 dígitos del N° de documento."
@@ -135,14 +106,24 @@ private fun validarNumeroNotaria(valor: String): String? {
 private const val AYUDA_RUN = "Ingresa tu RUT."
 private const val AYUDA_DOC = "Número de serie de la cédula, ej. 123.456.789."
 
-private fun runDef(key: String, titulo: String) = CampoDef(
-    key, titulo, "11.111.111-1", KeyboardType.Ascii, AYUDA_RUN,
-    formato = ::formatearRut, validar = { validarRut(it, "RUN") }
+private fun runDef(
+    key: String,
+    titulo: String,
+    placeholder: String = "11.111.111-1",
+    ayuda: String = AYUDA_RUN,
+    etiqueta: String = "RUN"
+) = CampoDef(
+    key, titulo, placeholder, KeyboardType.Ascii, ayuda,
+    formato = ::limpiarRut,
+    validar = { RutValidator.validar(it, etiqueta) },
+    visual = RutVisualTransformation()
 )
 
 private fun docDef(key: String, titulo: String) = CampoDef(
     key, titulo, "123.456.789", KeyboardType.Number, AYUDA_DOC,
-    formato = ::formatearDocumento, validar = ::validarDocumento
+    formato = ::limpiarDocumento,
+    validar = ::validarDocumento,
+    visual = DocumentoVisualTransformation()
 )
 
 private fun correoDef(titulo: String) = CampoDef(
@@ -150,15 +131,15 @@ private fun correoDef(titulo: String) = CampoDef(
 )
 
 private fun telefonoDef() = CampoDef(
-    "telefono", "Teléfono de contacto ", "912345678", KeyboardType.Phone,
+    "telefono", "Teléfono de contacto", "912345678", KeyboardType.Phone,
     formato = { soloDigitos(it, 9) }, validar = ::validarTelefono
 )
 
 private fun camposPara(tipo: TipoCuenta): List<CampoDef> = when (tipo) {
-    TipoCuenta.Persona -> listOf(
+    TipoCuenta.PERSONA -> listOf(
         CampoDef("nombre", "Nombre completo", "Ana Demo Prueba",
             validar = texto(3, "Ingresa un nombre.")),
-        runDef("rut", "RUT "),
+        runDef("rut", "RUT", etiqueta = "RUT"),
         docDef("doc", "N° de documento"),
         correoDef("Correo electrónico"),
         telefonoDef(),
@@ -166,12 +147,11 @@ private fun camposPara(tipo: TipoCuenta): List<CampoDef> = when (tipo) {
             validar = texto(3, "Ingresa tu comuna."))
     )
 
-    TipoCuenta.Empresa -> listOf(
+    TipoCuenta.EMPRESA -> listOf(
         CampoDef("razon", "Nombre Empresa", "Comercial Demo SpA",
             validar = texto(3, "Ingresa el nombre de la empresa")),
-        CampoDef("rut", "RUT de la empresa", "76.111.111-K", KeyboardType.Ascii,
-            "Ingresa el RUT de la empresa",
-            formato = ::formatearRut, validar = { validarRut(it, "RUT") }),
+        runDef("rut", "RUT de la empresa", "76.111.111-K",
+            ayuda = "Ingresa el RUT de la empresa", etiqueta = "RUT"),
         CampoDef("giro", "Giro o actividad comercial", "Venta de insumos",
             validar = texto(3, "Ingresa el giro de la empresa.")),
         CampoDef("rep_nombre", "Nombre del representante legal", "Pedro Demo Prueba",
@@ -184,8 +164,8 @@ private fun camposPara(tipo: TipoCuenta): List<CampoDef> = when (tipo) {
             validar = texto(3, "Ingresa la comuna."))
     )
 
-    TipoCuenta.Notario -> listOf(
-        CampoDef("nombre", "Nombre del notario ", "Luis Demo Prueba",
+    TipoCuenta.NOTARIO -> listOf(
+        CampoDef("nombre", "Nombre del notario", "Luis Demo Prueba",
             validar = texto(3, "Ingresa un nombre.")),
         runDef("run", "RUN"),
         docDef("doc", "N° de documento"),
@@ -216,9 +196,10 @@ private fun camposPara(tipo: TipoCuenta): List<CampoDef> = when (tipo) {
 fun CrearCuentaScreen(
     onVolver: () -> Unit = {},
     onIngresar: () -> Unit = {},
-    onRegistrado: (TipoCuenta) -> Unit = {}
+    onRegistrado: (Usuario) -> Unit = {},
+    vm: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    var tipo by rememberSaveable { mutableStateOf(TipoCuenta.Persona) }
+    var tipo by rememberSaveable { mutableStateOf(TipoCuenta.PERSONA) }
     var valores by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
     var pass by rememberSaveable { mutableStateOf("") }
     var pass2 by rememberSaveable { mutableStateOf("") }
@@ -288,6 +269,7 @@ fun CrearCuentaScreen(
                     colors = SegmentedButtonDefaults.colors(
                         activeContainerColor = Brand,
                         activeContentColor = Color.White,
+                        inactiveContainerColor = Color.White,
                         inactiveContentColor = Gris
                     )
                 ) { Text(t.etiqueta) }
@@ -306,7 +288,8 @@ fun CrearCuentaScreen(
                     error = errores[c.key].takeIf { intento },
                     teclado = c.teclado,
                     ime = ImeAction.Next,
-                    onNext = siguiente
+                    onNext = siguiente,
+                    visual = c.visual
                 )
             }
         }
@@ -332,12 +315,13 @@ fun CrearCuentaScreen(
         )
 
         // Registrarse
+// Registrarse
         Button(
             onClick = {
                 intento = true
-                if (valido) {
-                    registrado = true
-                    onRegistrado(tipo)
+                if (valido) vm.registrar(tipo, valores, pass) {
+                    usuario -> registrado = true
+                    onRegistrado(usuario)
                 }
             },
             modifier = Modifier
@@ -350,6 +334,14 @@ fun CrearCuentaScreen(
             Text("Registrarse", fontSize = 17.sp, fontWeight = FontWeight.Bold)
         }
 
+        vm.errorRegistro?.let {
+            Text(
+                it,
+                color = MaterialTheme.colorScheme.error, fontSize = 14.sp,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+        }
+
         if (intento && !valido) {
             Text(
                 "Revisa los campos marcados en rojo.",
@@ -359,14 +351,13 @@ fun CrearCuentaScreen(
         }
 
         if (registrado) {
-            val destino = if (tipo == TipoCuenta.Notario) "Bandeja del notario" else "Mis trámites"
+            val destino = if (tipo == TipoCuenta.NOTARIO) "Bandeja del notario" else "Mis trámites"
             Text(
-                "Cuenta simulada creada ($destino). No se guardó ningún dato real.",
+                "Cuenta creada correctamente ($destino).",
                 color = Brand, fontSize = 14.sp,
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -377,47 +368,48 @@ fun CrearCuentaScreen(
                 Text("Ingresar", color = Brand, fontWeight = FontWeight.Bold)
             }
         }
-    }
-}
+    }   // ← cierra el Column
+}       // ← cierra CrearCuentaScreen
 
-@Composable
-private fun Campo(
-    titulo: String,
-    valor: String,
-    onCambio: (String) -> Unit,
-    placeholder: String,
-    error: String?,
-    teclado: KeyboardType,
-    ime: ImeAction,
-    onNext: () -> Unit,
-    esPassword: Boolean = false,
-    ayuda: String? = null
-) {
-    Text(
-        titulo,
-        color = Tinta, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-        modifier = Modifier.padding(top = 10.dp, bottom = 6.dp)
-    )
-    OutlinedTextField(
-        value = valor,
-        onValueChange = onCambio,
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        shape = RoundedCornerShape(10.dp),
-        placeholder = if (placeholder.isNotEmpty()) ({ Text(placeholder) }) else null,
-        isError = error != null,
-        supportingText = { Text(error ?: ayuda ?: "") },
-        visualTransformation = if (esPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(keyboardType = teclado, imeAction = ime),
-        keyboardActions = KeyboardActions(onNext = { onNext() }, onDone = { onNext() }),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Brand,
-            cursorColor = Brand,
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White
-        )
-    )
-}
+        @Composable
+        private fun Campo(
+            titulo: String,
+            valor: String,
+            onCambio: (String) -> Unit,
+            placeholder: String,
+            error: String?,
+            teclado: KeyboardType,
+            ime: ImeAction,
+            onNext: () -> Unit,
+            esPassword: Boolean = false,
+            ayuda: String? = null,
+            visual: VisualTransformation = VisualTransformation.None
+        ) {
+            Text(
+                titulo,
+                color = Tinta, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp)
+            )
+            OutlinedTextField(
+                value = valor,
+                onValueChange = onCambio,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                placeholder = if (placeholder.isNotEmpty()) ({
+                    Text(
+                        placeholder,
+                        color = Gris
+                    )
+                }) else null,
+                isError = error != null,
+                supportingText = { Text(error ?: ayuda ?: "") },
+                visualTransformation = if (esPassword) PasswordVisualTransformation() else visual,
+                keyboardOptions = KeyboardOptions(keyboardType = teclado, imeAction = ime),
+                keyboardActions = KeyboardActions(onNext = { onNext() }, onDone = { onNext() }),
+                colors = notixTextFieldColors()
+            )
+        }
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
