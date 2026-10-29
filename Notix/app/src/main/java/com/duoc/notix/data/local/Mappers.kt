@@ -31,7 +31,6 @@ fun Usuario.toEntity(): UsuarioEntity = UsuarioEntity(
     giroEmpresa = empresa?.giro,
     numeroNotaria = numeroNotaria
 )
-
 fun TramiteConDetalles.toDomain(): Tramite {
     return Tramite(
         id = tramite.id,
