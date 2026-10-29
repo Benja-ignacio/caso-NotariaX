@@ -16,7 +16,6 @@ fun UsuarioEntity.toDomain(): Usuario = Usuario(
         DatosEmpresa(razonSocialEmpresa, rutEmpresa, giroEmpresa.orEmpty()) else null,
     numeroNotaria = numeroNotaria
 )
-
 fun Usuario.toEntity(): UsuarioEntity = UsuarioEntity(
     id = id,
     tipoCuenta = tipoCuenta,
