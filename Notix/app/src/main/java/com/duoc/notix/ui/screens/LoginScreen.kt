@@ -1,6 +1,9 @@
 package com.duoc.notix.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,7 +60,6 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var verClave by remember { mutableStateOf(false) }
 
-    // Lo único que hace el botón: entregarle al ViewModel lo que escribió el usuario
     fun ingresar() = vm.ingresar(perfil, email, password, onLoginSuccess)
 
     Surface(modifier = Modifier.fillMaxSize(), color = NotixColors.Fondo) {
@@ -88,7 +90,6 @@ fun LoginScreen(
                 )
             }
 
-            // Selector Persona | Empresa | Notario
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -149,6 +150,19 @@ fun LoginScreen(
                 },
             )
 
+            Row(
+                modifier = Modifier.fillMaxWidth().testTag("recordar_sesion").toggleable(
+                    value = vm.recordar,
+                    enabled = !vm.cargando,
+                    role = Role.Checkbox,
+                    onValueChange = vm::onRecordarChange
+                ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(checked = vm.recordar, onCheckedChange = null, enabled = !vm.cargando)
+                Text("Recordar sesión", color = NotixColors.Tinta, fontSize = 14.sp)
+            }
+
             Button(
                 onClick = ::ingresar,
                 enabled = !vm.cargando,
@@ -159,14 +173,13 @@ fun LoginScreen(
                 Text("Ingresar", fontWeight = FontWeight.SemiBold)
             }
 
-            // Mensaje de error que viene del ViewModel (cuenta inexistente, clave incorrecta, etc.)
             vm.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             }
 
             OutlinedButton(
                 onClick = ::ingresar,
-                enabled = !vm.cargando, // simulación: mismo resultado que Ingresar
+                enabled = !vm.cargando,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(10.dp),
                 border = BorderStroke(1.dp, NotixColors.Borde)
