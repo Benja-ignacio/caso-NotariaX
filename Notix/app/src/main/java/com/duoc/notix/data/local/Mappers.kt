@@ -69,7 +69,6 @@ fun TramiteConDetalles.toDomain(): Tramite {
         }
     )
 }
-
 fun Tramite.toEntities(): Triple<TramiteEntity, List<DocumentoEntity>, List<EventoHistorialEntity>> {
     val tramiteEntity = TramiteEntity(
         id = id,
