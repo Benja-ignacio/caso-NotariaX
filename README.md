@@ -188,7 +188,7 @@ $ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \
 
 > El APK y el `.jks` **no se versionan** en el repositorio. Se entregan en AVA o por un enlace privado. No publicar el keystore ni sus contraseñas.
 >
-> Captura pendiente: `docs/evidencias/apk-firmado.png`.
+> Captura pendiente: `docs/evidencias/img/apk-firmado.png`.
 
 ---
 

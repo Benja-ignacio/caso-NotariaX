@@ -7,12 +7,14 @@
 
 | Archivo | Contenido |
 |---|---|
-| `apk-firmado.png` | Captura de `apksigner verify` y del APK release |
-| `trello.png` | Captura del tablero Trello con columnas y tareas |
-| `cobertura.png` | Captura del reporte JaCoCo ≥ 80 % |
-| `commits.png` | Captura de commits de todos los integrantes en GitHub |
-| `ava-grupal.txt` | Enlace/confirmación de entrega grupal AVA |
-| `ava-individual.txt` | Confirmación de activación individual de todos los integrantes |
+| `img/apk-firmado.png` | Captura de `apksigner verify` y del APK release |
+| `img/keystore.png` | Existencia y alias del keystore, sin contraseñas |
+| `img/trello.png` | Captura del tablero Trello con columnas y tareas |
+| `img/cobertura.png` | Captura del reporte JaCoCo ≥ 80 % |
+| `img/tests.png` | Pruebas JVM y DAO sin fallos |
+| `img/commits.png` | Captura de commits de todos los integrantes en GitHub |
+| `img/ava-grupal.png` | Confirmación de entrega grupal AVA |
+| `img/ava-individual.png` | Confirmación de activación individual de todos los integrantes |
 
 ## APK y keystore
 
