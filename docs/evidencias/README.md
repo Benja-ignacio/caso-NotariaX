@@ -10,9 +10,9 @@
 | `apk-firmado.png` | Captura de `apksigner verify` y del APK release |
 | `trello.png` | Captura del tablero Trello con columnas y tareas |
 | `cobertura.png` | Captura del reporte JaCoCo ≥ 80 % |
-| `commits.png` | Captura de commits de ambos integrantes en GitHub |
+| `commits.png` | Captura de commits de todos los integrantes en GitHub |
 | `ava-grupal.txt` | Enlace/confirmación de entrega grupal AVA |
-| `ava-individual.txt` | Confirmación de activación individual de ambos integrantes |
+| `ava-individual.txt` | Confirmación de activación individual de todos los integrantes |
 
 ## APK y keystore
 
@@ -73,7 +73,7 @@ git log --format='%h %an <%ae>' -10
 git push origin main
 ```
 
-La entrega requiere commits de ambos integrantes y acceso del docente al repositorio.
+La entrega requiere commits de todos los integrantes y acceso del docente al repositorio.
 
 ## AVA
 
@@ -83,5 +83,5 @@ Antes de cerrar:
 - Adjuntar APK firmado.
 - Adjuntar `.jks` solo si se solicita.
 - Adjuntar captura de Trello y cobertura.
-- Activar entrega individual de ambos integrantes.
+- Activar entrega individual de todos los integrantes.
 - No hacer commits después de la fecha límite.

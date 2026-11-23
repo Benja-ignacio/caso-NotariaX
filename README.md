@@ -14,6 +14,7 @@ Aplicación Android académica para el caso **NotariaX** (DSY1105, Duoc UC). Per
 |---|---|
 | Benjamin | [@Benja-ignacio](https://github.com/Benja-ignacio) |
 | Juan Alonso Parra Verdejo | [@juanalonsoparraverdejo](https://github.com/juanalonsoparraverdejo) |
+| Vicente Vergara | [@vicentevergara1](https://github.com/vicentevergara1) |
 
 Repositorio: [github.com/Benja-ignacio/caso-NotariaX](https://github.com/Benja-ignacio/caso-NotariaX)
 
