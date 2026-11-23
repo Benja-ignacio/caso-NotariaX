@@ -94,7 +94,7 @@ class CrearTramiteViewModelTest {
     fun guardaTramiteConFirmaYDocumento() = runTest {
         val capturado = slot<Tramite>()
         coEvery { repo.crearTramite(capture(capturado)) } returns tramite(id = "TX-2026-0050")
-        coEvery { repo.refrescarAvisos(any()) } returns Unit
+        coEvery { repo.refrescarAvisos(any()) } returns emptyList()
         val vm = crearVm()
         runCurrent()
         vm.onFirmaConfirmada("SIMPLE_CANVAS")

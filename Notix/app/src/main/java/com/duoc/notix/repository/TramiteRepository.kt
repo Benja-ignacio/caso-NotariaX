@@ -67,9 +67,20 @@ class TramiteRepository(
         remotos.forEach { guardarRemoto(it.toDomain()) }
     }
 
-    suspend fun refrescarAvisos(usuarioId: String) {
-        val remotos = apiCall { api.avisos(usuarioId) }
-        remotos.forEach { avisoDao.insertAviso(it.toDomain().toEntity()) }
+    /**
+     * Refresca los avisos y devuelve los que llegaron nuevos y siguen sin leer.
+     * Los ViewModels usan ese resultado para lanzar notificaciones locales.
+     */
+    suspend fun refrescarAvisos(usuarioId: String): List<Aviso> {
+        val remotos = apiCall { api.avisos(usuarioId) }.map { it.toDomain() }
+        val idsLocales = avisoDao.getAvisosPorDestinatario(usuarioId)
+            .firstOrNull()
+            .orEmpty()
+            .map { it.id }
+            .toSet()
+
+        remotos.forEach { avisoDao.insertAviso(it.toEntity()) }
+        return remotos.filter { !it.leido && it.id !in idsLocales }
     }
 
     suspend fun marcarAvisoLeido(avisoId: String) {

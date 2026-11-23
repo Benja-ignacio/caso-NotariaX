@@ -43,7 +43,7 @@ class MisTramitesViewModelTest {
         )
         every { repo.observarAvisosSinLeer("USR-001") } returns flowOf(true)
         coEvery { repo.refrescarMisTramites(any()) } returns Unit
-        coEvery { repo.refrescarAvisos(any()) } returns Unit
+        coEvery { repo.refrescarAvisos(any()) } returns emptyList()
     }
 
     @Test

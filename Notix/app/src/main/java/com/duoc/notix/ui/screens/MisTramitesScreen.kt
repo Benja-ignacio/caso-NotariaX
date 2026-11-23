@@ -1,5 +1,10 @@
 package com.duoc.notix.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -46,6 +51,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +65,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.duoc.notix.data.model.EstadoTramite
 import com.duoc.notix.data.model.Tramite
@@ -67,6 +74,7 @@ import com.duoc.notix.ui.components.CorreccionTramiteDialog
 import com.duoc.notix.ui.components.EstadoChip
 import com.duoc.notix.ui.components.TramiteCard
 import com.duoc.notix.ui.theme.NotixColors
+import com.duoc.notix.util.NotificacionUtil
 import com.duoc.notix.viewmodel.FiltroTramites
 import com.duoc.notix.viewmodel.MisTramitesUiState
 import com.duoc.notix.viewmodel.MisTramitesViewModel
@@ -88,6 +96,22 @@ fun MisTramitesScreen(
     var tramiteDetalle by remember { mutableStateOf<Tramite?>(null) }
     var tramiteACorregir by remember { mutableStateOf<Tramite?>(null) }
     var tramiteAEliminar by remember { mutableStateOf<Tramite?>(null) }
+
+    val context = LocalContext.current
+    val permisoNotificaciones = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+    LaunchedEffect(Unit) {
+        NotificacionUtil.crearCanal(context)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permisoNotificaciones.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     MisTramitesContent(
         state = state,

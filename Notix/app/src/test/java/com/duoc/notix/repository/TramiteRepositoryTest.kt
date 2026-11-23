@@ -17,9 +17,11 @@ import com.duoc.notix.testutil.tramite
 import com.duoc.notix.testutil.tramiteDto
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import java.io.IOException
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -64,10 +66,12 @@ class TramiteRepositoryTest {
         coEvery { api.marcarLeido("AVS-1", any()) } returns AvisoDto(id = "AVS-1")
         coEvery { avisoDao.insertAviso(any()) } returns Unit
         coEvery { avisoDao.marcarAvisoLeido("AVS-1") } returns Unit
+        every { avisoDao.getAvisosPorDestinatario("USR-001") } returns flowOf(emptyList())
 
-        repo.refrescarAvisos("USR-001")
+        val nuevos = repo.refrescarAvisos("USR-001")
         repo.marcarAvisoLeido("AVS-1")
 
+        assertEquals(listOf("AVS-1"), nuevos.map { it.id })
         coVerify { avisoDao.insertAviso(match { it.id == "AVS-1" }) }
         coVerify { avisoDao.marcarAvisoLeido("AVS-1") }
         coVerify { api.marcarLeido("AVS-1", any<MarcarLeidoRequestDto>()) }

@@ -38,7 +38,7 @@ class AvisosViewModelTest {
                 )
             )
         )
-        coEvery { repo.refrescarAvisos("USR-001") } returns Unit
+        coEvery { repo.refrescarAvisos("USR-001") } returns emptyList()
         val vm = AvisosViewModel(repo, "USR-001")
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.avisos.collect { } }
         runCurrent()
@@ -50,7 +50,7 @@ class AvisosViewModelTest {
     @Test
     fun marcaAvisoComoLeido() = runTest {
         every { repo.observarAvisos("USR-001") } returns flowOf(emptyList())
-        coEvery { repo.refrescarAvisos("USR-001") } returns Unit
+        coEvery { repo.refrescarAvisos("USR-001") } returns emptyList()
         coEvery { repo.marcarAvisoLeido("AVS-1") } returns Unit
         val vm = AvisosViewModel(repo, "USR-001")
 

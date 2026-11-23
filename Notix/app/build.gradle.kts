@@ -127,6 +127,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
                 "**/RetrofitProviders*",
                 "**/ApiConfig*",
                 "**/ArchivoUtil*",
+                "**/NotificacionUtil*",
                 "**/BuildConfig*",
                 "**/R$*.class"
             )
@@ -175,6 +176,7 @@ tasks.register<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
                 "**/RetrofitProviders*",
                 "**/ApiConfig*",
                 "**/ArchivoUtil*",
+                "**/NotificacionUtil*",
                 "**/BuildConfig*",
                 "**/R$*.class"
             )
