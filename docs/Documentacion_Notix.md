@@ -1,7 +1,7 @@
 # Notix — Documentación técnica y estado del proyecto
 
 > Proyecto académico DSY1105 · Caso NotariaX · Duoc UC
-> Última actualización: 29/10/2026
+> Última actualización: 23/11/2026
 
 ---
 
@@ -13,12 +13,14 @@ El flujo implementado cubre:
 
 1. Registro e inicio de sesión con tres perfiles: **Persona**, **Empresa** y **Notario**.
 2. Catálogo ficticio de formatos de trámite.
-3. Creación de un trámite con antecedentes, documento adjunto y confirmación.
+3. Creación de un trámite con antecedentes, documento adjunto, firma simulada y confirmación.
 4. Envío simulado al notario.
 5. Bandeja del notario con filtros y contadores.
-6. Revisión del trámite: **aprobar/finalizar** o **devolver con observaciones**.
+6. Revisión del trámite: **aprobar/finalizar** (exigiendo legibilidad) o **devolver con observaciones**.
 7. Actualización automática de estado, historial y avisos.
 8. Consulta del estado, historial y observaciones por parte del solicitante.
+9. Corrección y reenvío cuando el trámite fue devuelto.
+10. Cierre de sesión para Persona, Empresa y Notario.
 
 La app **no debe usarse para trámites notariales reales**. No integra servicios productivos, firmas reales, biometría real ni bases de datos de NotariaX.
 
@@ -36,11 +38,11 @@ La app **no debe usarse para trámites notariales reales**. No integra servicios
 | Historial y avisos en base de datos | ✅ Implementado |
 | Selector nativo de archivos | ✅ Integrado (solo metadatos) |
 | Notificaciones del sistema | ❌ Pendiente |
-| Firma simulada (trazo/mock) | ⚠️ Solo declaración, sin representación real |
-| Corrección y reenvío tras devolución | ❌ Pendiente |
-| Confirmación de legibilidad por el notario | ⚠️ Campo existe, no se exige en UI |
+| Firma simulada (trazo/mock) | ✅ Implementada y obligatoria antes de enviar |
+| Corrección y reenvío tras devolución | ✅ Implementada |
+| Confirmación de legibilidad por el notario | ✅ Obligatoria para aprobar |
 | Pruebas unitarias/UI | ⚠️ Solo pruebas de ejemplo |
-| Navegación completa (perfil, atrás, logout persona) | ⚠️ Parcial |
+| Navegación completa (perfil, atrás, logout persona) | ⚠️ Logout Persona/Empresa/Notario implementado; falta botón atrás y perfil |
 | Documentación | ✅ Este documento + README actualizado |
 
 > El proyecto **compila** con el SDK configurado. Ver sección 12 para la verificación y requisitos de entorno.
@@ -157,13 +159,13 @@ Esta es la parte central para la rúbrica: **los trámites, usuarios, documentos
 |---|---|
 | Clase | `NotixDatabase` (`data/local/NotixDatabase.kt`) |
 | Nombre del archivo | `notix_database` (SQLite dentro del sandbox de la app) |
-| Versión | `2` |
+| Versión | `3` |
 | Exportación de esquema | `exportSchema = false` |
-| Migraciones | `fallbackToDestructiveMigration()` |
+| Migraciones | `MIGRATION_2_3` explícita + `fallbackToDestructiveMigration()` |
 | Instancia | Singleton con `getDatabase(context)` |
 | Convertidores | `NotixTypeConverters` |
 
-> ⚠️ **Importante:** al cambiar la versión del esquema sin migración, Room **borra y recrea las tablas** (pérdida de datos). Es aceptable para el MVP, pero debe cambiarse antes de una entrega con datos que se quieran conservar. Ver sección 10.
+> **Migración 2 → 3:** agrega la columna `tramites.firmaEvidencia` con `ALTER TABLE ... ADD COLUMN`, por lo que conserva los datos locales. El fallback destructivo queda solo como red de seguridad para versiones futuras sin migración.
 
 ### 6.2 Tablas
 
@@ -198,7 +200,8 @@ Esta es la parte central para la rúbrica: **los trámites, usuarios, documentos
 | `estado` | TEXT | `ENVIADO`, `DEVUELTO`, `FINALIZADO` |
 | `antecedentes*` | TEXT | Nombre, documento, correo y comuna |
 | `observacion` | TEXT? | Motivo de devolución |
-| `legibilidadConfirmada` | INTEGER | Booleano; **aún no se usa en el flujo** |
+| `legibilidadConfirmada` | INTEGER | Booleano; lo marca el notario al aprobar |
+| `firmaEvidencia` | TEXT? | Evidencia ficticia: `SIMPLE_CANVAS`, `AVANZADA_TOKEN_SIMULADO`, `NOTARIADA_SIMULADA` |
 
 #### `documentos`
 
@@ -245,6 +248,8 @@ Esta es la parte central para la rúbrica: **los trámites, usuarios, documentos
 - `getTramitesPorSolicitante(id)`: `Flow<List<TramiteConDetalles>>`
 - `getTodosLosTramites()`: `Flow<List<TramiteConDetalles>>`
 - `updateTramite(...)`
+- `actualizarEstadoCompleto(...)`: transacción que actualiza estado + historial + aviso
+- `reenviarTramiteCompleto(...)`: transacción que actualiza antecedentes/estado, reemplaza documentos y agrega historial + aviso
 
 `UsuarioDao`
 
@@ -315,7 +320,7 @@ Esto evita crashes ante valores desconocidos, pero puede ocultar datos corruptos
 | Sesión iniciada / usuario actual | ❌ No | Estado de `MainActivity` |
 | Contraseña | ⚠️ Sí, en texto plano | Room (`usuarios`) |
 | Archivo adjunto real (contenido/URI) | ❌ No | Solo se guarda el nombre |
-| Firma dibujada | ❌ No existe | — |
+| Firma dibujada | ⚠️ Solo evidencia ficticia | Room (`tramites.firmaEvidencia`) |
 | Notificaciones del sistema | ❌ No | Solo avisos internos en Room |
 | Filtros y selección de pantalla | ❌ No | Estado Compose en memoria |
 
@@ -332,7 +337,7 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
 ### 6.9 Consecuencias prácticas
 
 - Cerrar y abrir la app **mantiene** trámites, usuarios, avisos e historial.
-- Cambiar la versión de la base de datos **borra todo** por `fallbackToDestructiveMigration()`.
+- Cambiar la versión de la base de datos exige una migración explícita; la versión 2 → 3 conserva datos. El `fallbackToDestructiveMigration()` solo actúa si falta una ruta de migración.
 - Desinstalar la app **borra** la base de datos.
 - Borrar datos de la app desde Ajustes **borra** la base de datos.
 - La app vuelve siempre a la pantalla de bienvenida porque la sesión no se guarda.
@@ -363,15 +368,18 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
   - Edición de nombre, RUN, correo y comuna con validaciones.
   - Campo “en representación de” para Empresa.
   - Selector nativo de archivos (`ActivityResultContracts.GetContent`).
-  - Declaración de legibilidad/veracidad.
-  - Modal de confirmación con resumen.
-  - Guarda el trámite y crea un aviso.
+  - Declaración de legibilidad/veracidad, desmarcada por defecto y obligatoria para continuar.
+  - Paso de firma simulada según `TipoFirma`: trazo en `Canvas` (SIMPLE), código e-token de 6 dígitos (AVANZADA) o autorización notarial (NOTARIADA).
+  - Modal de confirmación con resumen y evidencia de firma.
+  - Guarda el trámite, la evidencia ficticia y crea un aviso.
 - `MisTramitesScreen`:
   - Contadores: en revisión, observados, finalizados.
   - Filtros: todos, en curso, observados, finalizados.
   - Banner de alerta para trámite devuelto.
-  - Detalle con antecedentes, documentos, observación del notario e historial.
-- `AvisosScreen`: lista de avisos, marca como leído al tocar.
+  - Detalle con antecedentes, documentos, firma simulada, observación del notario e historial.
+  - Si el trámite está `DEVUELTO`, permite **Corregir y reenviar**: edita antecedentes, exige reemplazar documentos observados, limpia la observación, vuelve a `ENVIADO` y registra historial + aviso.
+  - Cierre de sesión con confirmación.
+- `AvisosScreen`: lista de avisos, marca como leído al tocar y permite cerrar sesión.
 
 ### 7.3 Flujo Notario
 
@@ -380,9 +388,11 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
   - Contadores y filtros.
   - Tarjetas con solicitante, comuna, correo, observación y estado.
 - Diálogo de revisión:
-  - Muestra antecedentes y documentos.
-  - **Aprobar** → estado `FINALIZADO`, nuevo evento de historial y aviso al solicitante.
-  - **Devolver** → exige observación obligatoria; estado `DEVUELTO`, historial y aviso.
+  - Muestra antecedentes, documentos y firma simulada.
+  - Solo permite actuar sobre trámites `ENVIADO`; un `FINALIZADO` o `DEVUELTO` se muestra en modo lectura.
+  - **Aprobar** exige marcar el checkbox de legibilidad; guarda `legibilidadConfirmada = true`, estado `FINALIZADO`, historial y aviso.
+  - **Devolver** exige observación obligatoria; estado `DEVUELTO`, historial y aviso.
+  - Las transiciones inválidas también se rechazan en el repositorio, no solo en la UI.
 
 ### 7.4 UI y recursos
 
@@ -412,6 +422,7 @@ Tramite
  ├── antecedentes: Antecedentes
  ├── observacion: String?
  ├── legibilidadConfirmada: Boolean
+ ├── firmaEvidencia: String?
  └── historial: List<EventoHistorial>
 
 Aviso
@@ -465,93 +476,69 @@ Ordenados por impacto para la rúbrica y el flujo principal.
 
 ### Alta prioridad
 
-1. **Firma simulada real**
-   - Hoy el flujo solo muestra una declaración y una nota.
-   - Falta representar la firma según `TipoFirma`:
-     - `SIMPLE`: trazo en pantalla (Canvas) con datos ficticios.
-     - `AVANZADA`: mock de e-token/certificado.
-     - `NOTARIADA`: confirmación simulada ante notario.
-   - Marcarla como requisito para enviar y guardar evidencia ficticia en el trámite.
-
-2. **Corrección y reenvío tras devolución**
-   - Actualmente el trámite devuelto solo se puede consultar.
-   - Falta editar antecedentes/documentos, registrar corrección y volver a `ENVIADO`.
-   - Debe generar evento de historial y aviso.
-
-3. **Confirmación de legibilidad obligatoria del notario**
-   - `legibilidadConfirmada` existe en el modelo y la tabla, pero no se usa.
-   - El diálogo permite aprobar sin confirmar legibilidad.
-   - Agregar checkbox y bloquear “Aprobar” hasta marcarlo; persistir el valor.
-
-4. **Persistencia real del documento adjunto**
+1. **Persistencia real del documento adjunto**
    - Hoy solo se guarda el nombre.
    - Copiar el archivo a almacenamiento interno o guardar URI con permiso persistente.
-   - Permitir múltiples documentos y estados por documento.
    - Validar tipo/tamaño y evitar rutas nulas.
-
-5. **Respetar el estado en acciones del notario**
-   - Se puede aprobar o devolver un trámite ya `FINALIZADO`.
-   - Ocultar o bloquear acciones según estado actual.
-   - Evitar dobles envíos/devoluciones.
 
 ### Media prioridad
 
-6. **Notificaciones del sistema**
+2. **Notificaciones del sistema**
    - Los avisos en Room no generan notificación Android.
    - Implementar permiso `POST_NOTIFICATIONS` (API 33+) y `NotificationManager`.
    - Notificar al devolver o finalizar un trámite.
 
-7. **Navegación y sesión**
+3. **Navegación y sesión**
    - `BarraInferiorPersona` tiene varias acciones vacías (`onInicio`, `onPerfil`).
-   - No hay pantalla de perfil ni cierre de sesión para Persona/Empresa.
-   - No se maneja el botón atrás del sistema.
-   - Considerar `Navigation Compose` o un manejo centralizado de rutas.
+   - Falta pantalla de perfil y manejo del botón atrás del sistema.
+   - El logout ya está conectado para Persona, Empresa y Notario.
    - Persistir la sesión (DataStore) si se desea mantener al usuario autenticado.
 
-8. **Avisos navegables**
+4. **Avisos navegables**
    - `Aviso.tramiteId` no se usa para abrir el trámite.
    - Al tocar un aviso conviene marcar leído y navegar al detalle.
 
-9. **Asignación de trámites al notario**
+5. **Asignación de trámites al notario**
    - El notario ve todos los trámites de la base.
    - En un escenario real debería ver solo los de su notaría o los asignados.
 
-10. **Validaciones centralizadas**
-    - Hoy hay reglas en pantallas, ViewModels y repositorio.
-    - Extraer un `TramiteValidator` (como propone la guía) para evitar duplicación.
+6. **Validaciones centralizadas**
+   - Hoy hay reglas en pantallas, ViewModels y repositorio.
+   - Extraer un `TramiteValidator` (como propone la guía) para evitar duplicación.
 
 ### Baja prioridad / calidad
 
-11. **Migraciones Room**
-    - Reemplazar `fallbackToDestructiveMigration()` por migraciones explícitas.
-    - Activar `exportSchema = true` y versionar el esquema.
+7. **Migraciones Room**
+   - Ya existe `MIGRATION_2_3` explícita para conservar datos.
+   - Activar `exportSchema = true` y versionar el esquema.
+   - Evaluar retirar `fallbackToDestructiveMigration()` cuando Room deje de ser prescindible.
 
-12. **Seguridad**
-    - Contraseñas en texto plano; para el MVP es aceptable, pero documentar que no es producción.
-    - No hay cifrado de base de datos ni control de acceso a nivel de datos.
-    - Revisar `allowBackup`.
+8. **Seguridad**
+   - Contraseñas en texto plano; para el MVP es aceptable, pero documentar que no es producción.
+   - No hay cifrado de base de datos ni control de acceso a nivel de datos.
+   - Revisar `allowBackup`.
 
-13. **Fechas**
-    - Se usa la fecha real del dispositivo, no una fecha simulada controlada.
-    - El orden de trámites se hace por `id` descendente, no por fecha de creación.
-    - Considerar `fechaCreacion` y ordenar por ella.
+9. **Fechas**
+   - Se usa la fecha real del dispositivo, no una fecha simulada controlada.
+   - El orden de trámites se hace por `id` descendente, no por fecha de creación.
+   - Considerar `fechaCreacion` y ordenar por ella.
 
-14. **IDs**
+10. **IDs**
     - Los trámites nuevos usan `TX-2026-${1000..9999}.random()`, lo que puede colisionar.
     - Usar secuencia o UUID.
 
-15. **Documentación y código**
+11. **Documentación y código**
     - `docs/implementacion/Guia_implementacion_Notix.md` describe un estado anterior (repository vacío).
     - Actualizar esa guía o marcarla como histórica.
     - `README.md` debe mantenerse como entrada principal.
     - Revisar nombres de archivo: `AuthViewmodel.kt` vs `AuthViewModel`, `TramitesViewmodel.kt`.
 
-16. **Pruebas**
+12. **Pruebas**
     - Agregar pruebas unitarias para `RutValidator`, validaciones de formularios y transiciones de estado.
     - Agregar pruebas de DAO/instrumentadas para persistencia.
     - Agregar pruebas de UI para login, creación y revisión.
 
-17. **Limpieza**
+13. **Limpieza**
     - Eliminar `.idea/`, `build/` y archivos generados del control de versiones si no son necesarios.
     - Revisar `.gitignore` en raíz y en `Notix/`.
 
@@ -566,6 +553,12 @@ Ordenados por impacto para la rúbrica y el flujo principal.
 - [ ] Crear trámite sin nombre, RUN inválido, correo inválido o comuna vacía.
 - [ ] Crear trámite con y sin documento adjunto.
 - [ ] Confirmar que el botón de envío exige la declaración de legibilidad.
+- [ ] Completar la firma simulada correspondiente y verificar que no se puede enviar sin ella.
+- [ ] Aprobar sin marcar legibilidad y verificar que el botón está bloqueado.
+- [ ] Intentar aprobar o devolver un trámite ya finalizado o devuelto.
+- [ ] Corregir un trámite devuelto con documento observado y reenviarlo; verificar estado `ENVIADO` e historial.
+- [ ] Verificar que el documento observado exige reemplazo antes de reenviar.
+- [ ] Cerrar sesión como Persona, Empresa y Notario; verificar el regreso a Welcome.
 - [ ] Ver el trámite creado en “Mis trámites”.
 - [ ] Ver el trámite en la bandeja del notario.
 - [ ] Aprobar un trámite y verificar estado, historial y aviso.
@@ -585,32 +578,29 @@ Comando usado:
 
 ```bash
 cd Notix
-JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk sh gradlew :app:compileDebugKotlin --offline
+JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Resultado: **BUILD SUCCESSFUL** con el entorno local (AGP 9.2.1, Kotlin 2.2.10, Room 2.8.5, Gradle 9.4.1).
+Resultado: **BUILD SUCCESSFUL** con el entorno local (AGP 9.2.1, Kotlin 2.2.10, Room 2.8.5). Las pruebas ejecutadas son solo las de ejemplo (`ExampleUnitTest`); no se midió cobertura.
 
 Observaciones del entorno:
 
-- `gradlew` no tenía permiso de ejecución; se usó `sh gradlew` (o `chmod +x gradlew`).
-- `JAVA_HOME` apuntaba a un directorio inválido (`/usr/lib/jvm/java-21-openjdk`); se usó el JDK Temurin 21 disponible.
+- `gradlew` no tenía permiso de ejecución; se ejecutó `chmod +x gradlew`.
+- `JAVA_HOME` apuntaba a un directorio inválido (`/usr/lib/jvm/java-21-openjdk`); se usó el JDK Temurin 21 disponible mediante variable de entorno.
 - Gradle advierte que AGP 9.2.1 fue probado hasta compileSdk 37.0 y el proyecto usa 37.1. No impide compilar, pero conviene alinear versiones.
-- Si falta alguna dependencia, ejecutar sin `--offline` con conexión a internet.
+- Room advierte que `fallbackToDestructiveMigration()` está deprecado; la migración 2 → 3 sí está definida y conserva datos.
 
 ---
 
 ## 13. Recomendación de siguiente etapa
 
-Para cerrar el MVP con el mayor impacto:
+Estado tras la Fase 1 de la EP4 (23-11-2026): firma simulada, corrección/reenvío, legibilidad obligatoria y logout ya están implementados. Para cerrar el MVP queda:
 
-1. Implementar la **firma simulada** y exigirla al enviar.
-2. Implementar **corregir y reenviar** un trámite devuelto.
-3. Exigir **legibilidad confirmada** antes de aprobar.
-4. Guardar el **documento adjunto** de forma persistente.
-5. Agregar **notificaciones del sistema**.
-6. Completar **navegación, perfil y cierre de sesión**.
-7. Agregar **pruebas unitarias** de validaciones y persistencia.
-8. Actualizar la guía histórica y mantener este documento al día.
+1. Guardar el **documento adjunto** de forma persistente (hoy solo metadatos).
+2. Agregar **notificaciones del sistema**.
+3. Completar **navegación, perfil y botón atrás** (el logout ya está conectado).
+4. Agregar **pruebas unitarias** de validaciones, transiciones de estado y persistencia.
+5. Actualizar la guía histórica y mantener este documento al día.
 
 ---
 

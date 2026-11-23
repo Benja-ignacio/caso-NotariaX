@@ -1,20 +1,28 @@
 package com.duoc.notix.viewmodel
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.duoc.notix.data.local.NotixDatabase
+import com.duoc.notix.data.model.Antecedentes
+import com.duoc.notix.data.model.Documento
+import com.duoc.notix.data.model.EstadoDocumento
 import com.duoc.notix.data.model.EstadoTramite
 import com.duoc.notix.data.model.TipoCuenta
 import com.duoc.notix.data.model.Tramite
+import com.duoc.notix.data.validation.RutValidator
 import com.duoc.notix.repository.TramiteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 enum class FiltroTramites(val etiqueta: String) {
     TODOS("Todos"),
@@ -37,11 +45,16 @@ data class MisTramitesUiState(
 )
 
 class MisTramitesViewModel(
-    repo: TramiteRepository,
+    private val repo: TramiteRepository,
     usuarioId: String
 ) : ViewModel() {
 
     private val filtro = MutableStateFlow(FiltroTramites.TODOS)
+
+    var errorOperacion by mutableStateOf<String?>(null)
+        private set
+    var operacionEnCurso by mutableStateOf(false)
+        private set
 
     val uiState: StateFlow<MisTramitesUiState> = combine(
         repo.observarUsuario(usuarioId),
@@ -76,6 +89,77 @@ class MisTramitesViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MisTramitesUiState())
 
     fun onFiltro(nuevo: FiltroTramites) { filtro.value = nuevo }
+
+    fun limpiarErrorOperacion() {
+        errorOperacion = null
+    }
+
+    fun reenviarTramite(
+        tramite: Tramite,
+        antecedentes: Antecedentes,
+        nuevoDocumentoNombre: String?,
+        comentario: String,
+        onExito: () -> Unit
+    ) {
+        if (operacionEnCurso) return
+        if (tramite.estado != EstadoTramite.DEVUELTO) {
+            errorOperacion = "Solo se pueden corregir trámites devueltos."
+            return
+        }
+        if (antecedentes.nombreCompleto.isBlank()) {
+            errorOperacion = "Ingresa el nombre completo."
+            return
+        }
+        RutValidator.validar(antecedentes.documentoIdentidad.trim(), "RUN")?.let {
+            errorOperacion = it
+            return
+        }
+        if (antecedentes.correoContacto.isBlank() || !antecedentes.correoContacto.contains("@")) {
+            errorOperacion = "Ingresa un correo válido."
+            return
+        }
+        if (antecedentes.comuna.isBlank()) {
+            errorOperacion = "Ingresa la comuna."
+            return
+        }
+        val documentosObservados = tramite.documentos.any { it.estado == EstadoDocumento.OBSERVADO }
+        if (documentosObservados && nuevoDocumentoNombre.isNullOrBlank()) {
+            errorOperacion = "Adjunta un nuevo documento para reemplazar el observado."
+            return
+        }
+
+        viewModelScope.launch {
+            operacionEnCurso = true
+            errorOperacion = null
+            try {
+                val nuevoDocumento = nuevoDocumentoNombre
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let {
+                        Documento(
+                            nombre = it,
+                            tamanoKb = (120..350).random(),
+                            estado = EstadoDocumento.ACEPTADO
+                        )
+                    }
+                repo.reenviarTramite(
+                    tramite = tramite,
+                    antecedentes = antecedentes.copy(
+                        nombreCompleto = antecedentes.nombreCompleto.trim(),
+                        documentoIdentidad = antecedentes.documentoIdentidad.trim(),
+                        correoContacto = antecedentes.correoContacto.trim(),
+                        comuna = antecedentes.comuna.trim()
+                    ),
+                    nuevoDocumento = nuevoDocumento,
+                    comentario = comentario
+                )
+                onExito()
+            } catch (e: Exception) {
+                errorOperacion = e.localizedMessage ?: "No se pudo reenviar el trámite."
+            } finally {
+                operacionEnCurso = false
+            }
+        }
+    }
 
     companion object {
         fun factory(context: Context, usuarioId: String) = viewModelFactory {

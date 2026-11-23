@@ -52,6 +52,8 @@ class CrearTramiteViewModel(
         private set
     var documentoAdjuntoNombre by mutableStateOf<String?>(null)
         private set
+    var firmaEvidencia by mutableStateOf<String?>(null)
+        private set
 
     var nombreError by mutableStateOf<String?>(null)
         private set
@@ -111,6 +113,11 @@ class CrearTramiteViewModel(
         documentoAdjuntoNombre = nombre
     }
 
+    fun onFirmaConfirmada(evidencia: String) {
+        firmaEvidencia = evidencia
+        uiState = uiState.copy(errorGeneral = null)
+    }
+
     fun validarFormulario(): Boolean {
         val errNombre = if (nombreCompleto.isBlank()) "Ingresa el nombre completo" else null
         val errRun = RutValidator.validar(run, "RUN")
@@ -130,6 +137,11 @@ class CrearTramiteViewModel(
 
         if (!validarFormulario()) return
 
+        if (firmaEvidencia == null) {
+            uiState = uiState.copy(errorGeneral = "Debes completar la firma simulada antes de enviar.")
+            return
+        }
+
         val usuarioActual = uiState.usuario ?: return
 
         viewModelScope.launch {
@@ -145,6 +157,7 @@ class CrearTramiteViewModel(
                     actuaEnNombreDe = actuaEnNombreDe.ifBlank { null },
                     tipoFirma = formato.firmaRequerida,
                     estado = EstadoTramite.ENVIADO,
+                    firmaEvidencia = firmaEvidencia,
                     documentos = listOf(
                         Documento(
                             nombre = docNombre,

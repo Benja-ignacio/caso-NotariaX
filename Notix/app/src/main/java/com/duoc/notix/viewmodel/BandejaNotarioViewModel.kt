@@ -1,6 +1,9 @@
 package com.duoc.notix.viewmodel
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
@@ -35,6 +38,9 @@ class BandejaNotarioViewModel(
 
     private val filtro = MutableStateFlow(FiltroTramites.TODOS)
 
+    var errorOperacion by mutableStateOf<String?>(null)
+        private set
+
     val uiState: StateFlow<BandejaNotarioUiState> = combine(
         repo.observarUsuario(usuarioId),
         repo.observarTodosLosTramites(),
@@ -62,28 +68,59 @@ class BandejaNotarioViewModel(
         filtro.value = nuevo
     }
 
-    fun aprobarTramite(tramite: Tramite) {
+    fun limpiarError() {
+        errorOperacion = null
+    }
+
+    fun aprobarTramite(tramite: Tramite, legibilidadConfirmada: Boolean) {
+        if (!legibilidadConfirmada) {
+            errorOperacion = "Debes confirmar que los documentos son legibles antes de aprobar."
+            return
+        }
+        if (tramite.estado != EstadoTramite.ENVIADO) {
+            errorOperacion = "Solo se pueden aprobar trámites en estado ENVIADO."
+            return
+        }
         viewModelScope.launch {
-            repo.actualizarEstadoTramite(
-                tramite = tramite,
-                nuevoEstado = EstadoTramite.FINALIZADO,
-                descripcionHistorial = "Aprobado y finalizado por el notario",
-                rolHistorial = TipoCuenta.NOTARIO,
-                mensajeAviso = "Tu trámite ${tramite.id} (${tramite.formato.nombre}) ha sido aprobado y finalizado por el notario."
-            )
+            errorOperacion = null
+            try {
+                repo.actualizarEstadoTramite(
+                    tramite = tramite,
+                    nuevoEstado = EstadoTramite.FINALIZADO,
+                    legibilidadConfirmada = true,
+                    descripcionHistorial = "Aprobado y finalizado por el notario",
+                    rolHistorial = TipoCuenta.NOTARIO,
+                    mensajeAviso = "Tu trámite ${tramite.id} (${tramite.formato.nombre}) ha sido aprobado y finalizado por el notario."
+                )
+            } catch (e: Exception) {
+                errorOperacion = e.localizedMessage ?: "No se pudo aprobar el trámite."
+            }
         }
     }
 
     fun devolverTramite(tramite: Tramite, observacion: String) {
+        if (tramite.estado != EstadoTramite.ENVIADO) {
+            errorOperacion = "Solo se pueden devolver trámites en estado ENVIADO."
+            return
+        }
+        if (observacion.isBlank()) {
+            errorOperacion = "Ingresa el motivo de devolución."
+            return
+        }
         viewModelScope.launch {
-            repo.actualizarEstadoTramite(
-                tramite = tramite,
-                nuevoEstado = EstadoTramite.DEVUELTO,
-                observacion = observacion,
-                descripcionHistorial = "Devuelto con observaciones: $observacion",
-                rolHistorial = TipoCuenta.NOTARIO,
-                mensajeAviso = "Tu trámite ${tramite.id} (${tramite.formato.nombre}) ha sido devuelto con observaciones: $observacion"
-            )
+            errorOperacion = null
+            try {
+                repo.actualizarEstadoTramite(
+                    tramite = tramite,
+                    nuevoEstado = EstadoTramite.DEVUELTO,
+                    observacion = observacion.trim(),
+                    descripcionHistorial = "Devuelto con observaciones: ${observacion.trim()}",
+                    rolHistorial = TipoCuenta.NOTARIO,
+                    mensajeAviso = "Tu trámite ${tramite.id} (${tramite.formato.nombre}) ha sido devuelto con observaciones: ${observacion.trim()}"
+                )
+            } catch (e: Exception) {
+                errorOperacion = e.localizedMessage ?: "No se pudo devolver el trámite."
+            }
         }
     }
 

@@ -54,6 +54,37 @@ interface TramiteDao {
 
     @Update
     suspend fun updateTramite(tramite: TramiteEntity)
+
+    @Query("DELETE FROM documentos WHERE tramiteId = :tramiteId")
+    suspend fun deleteDocumentosDeTramite(tramiteId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAvisoTransaccional(aviso: AvisoEntity)
+
+    @Transaction
+    suspend fun actualizarEstadoCompleto(
+        tramite: TramiteEntity,
+        historial: EventoHistorialEntity,
+        aviso: AvisoEntity?
+    ) {
+        updateTramite(tramite)
+        insertHistorial(listOf(historial))
+        if (aviso != null) insertAvisoTransaccional(aviso)
+    }
+
+    @Transaction
+    suspend fun reenviarTramiteCompleto(
+        tramite: TramiteEntity,
+        documentos: List<DocumentoEntity>,
+        historial: EventoHistorialEntity,
+        aviso: AvisoEntity?
+    ) {
+        updateTramite(tramite)
+        deleteDocumentosDeTramite(tramite.id)
+        insertDocumentos(documentos)
+        insertHistorial(listOf(historial))
+        if (aviso != null) insertAvisoTransaccional(aviso)
+    }
 }
 @Dao
 interface UsuarioDao {

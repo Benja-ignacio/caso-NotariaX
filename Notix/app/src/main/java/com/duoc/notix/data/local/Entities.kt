@@ -48,7 +48,8 @@ data class TramiteEntity(
     val antecedentesCorreoContacto: String,
     val antecedentesComuna: String,
     val observacion: String? = null,
-    val legibilidadConfirmada: Boolean = false
+    val legibilidadConfirmada: Boolean = false,
+    val firmaEvidencia: String? = null
 )
 
 @Entity(

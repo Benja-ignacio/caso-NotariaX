@@ -28,7 +28,7 @@ Este documento no reemplaza el plan: lo aterriza. El orden recomendado de lectur
 | Lenguaje backend | **Java 21 + Spring Boot 3.5.x** | Es el stack más documentado para la pauta y evita fricción con Kotlin/Spring. |
 | Estrategia de datos en la app | **Remoto primero + Room como caché/sesión** | Cumple “envío, recepción y actualización” sin perder la base local que ya funciona. |
 | Sesión | **SharedPreferences** (`SessionManager`) | Menos dependencias y tiempo que DataStore; suficiente para logout y persistencia básica. |
-| Migración Room | Subir a versión 3 y mantener `fallbackToDestructiveMigration()` **solo como caché** | Al ser remoto la fuente de verdad, borrar la caché local no destruye información real. |
+| Migración Room | Subir a versión 3 con `MIGRATION_2_3` explícita y conservar `fallbackToDestructiveMigration()` como respaldo | Room sigue siendo la fuente de verdad mientras no exista backend; borrar la base local perdería trámites de la demo. |
 | Navegación | Mantener el `enum Pantalla` de `MainActivity` | Cambiar a Navigation Compose no suma puntaje directo y consume tiempo. |
 
 ---
@@ -40,14 +40,16 @@ Este documento no reemplaza el plan: lo aterriza. El orden recomendado de lectur
 | Área | Estado real | Evidencia |
 |---|---|---|
 | Proyecto Android + Compose | Funcional | `Notix/app/build.gradle.kts` |
-| Room local | Funcional, versión 2 | `data/local/NotixDatabase.kt` |
+| Room local | Funcional, versión 3 con migración 2 → 3 | `data/local/NotixDatabase.kt` |
 | Login/registro local | Funcional | `repository/AuthRepository.kt`, `viewmodel/LoginViewModel.kt`, `viewmodel/AuthViewmodel.kt` |
 | Catálogo y creación de trámites | Funcional | `ui/screens/CatalogoFormatosScreen.kt`, `ui/screens/CrearTramiteScreen.kt` |
 | Bandeja del notario | Funcional | `ui/screens/BandejaNotarioScreen.kt` |
-| Aprobar / devolver | Funcional | `BandejaNotarioViewModel.kt` |
+| Aprobar / devolver con legibilidad obligatoria | Funcional | `BandejaNotarioViewModel.kt`, `TramiteRepository.kt` |
+| Firma simulada por `TipoFirma` | Funcional y obligatoria | `ui/components/FirmaSimuladaDialog.kt` |
+| Corregir y reenviar tras devolución | Funcional | `ui/components/CorreccionTramiteDialog.kt`, `TramiteRepository.kt` |
 | Historial y avisos | Funcional en Room | `TramiteRepository.kt`, `data/local/Entities.kt` |
 | Detalle del trámite para persona | Funcional como diálogo | `MisTramitesScreen.kt` |
-| Logout notario | Funcional | `BandejaNotarioScreen.kt` |
+| Logout Persona, Empresa y Notario | Funcional | `MainActivity.kt`, `MisTramitesScreen.kt`, `AvisosScreen.kt` |
 | Selector nativo de archivos | Funcional, solo metadatos | `CrearTramiteScreen.kt` |
 
 ### 1.2 Brechas frente a la EP4
@@ -57,10 +59,6 @@ Este documento no reemplaza el plan: lo aterriza. El orden recomendado de lectur
 | Microservicios Spring Boot | No existen | IE 3.1.2 = 0 |
 | Retrofit contra backend | No implementado | IE 3.1.3 = 0 |
 | API externa | No implementada | IE 3.1.4 = 0 |
-| Firma simulada | Solo declaración visual; no hay paso de firma | IE 3.1.1 parcial |
-| Corregir y reenviar tras devolución | No existe | IE 3.1.1 parcial |
-| Legibilidad obligatoria del notario | Campo existe, no se exige | IE 3.1.1 parcial |
-| Logout Persona/Empresa | No existe | IE 3.1.1 parcial |
 | DELETE desde la UI | No existe | CRUD incompleto en IE 3.1.3 |
 | Pruebas unitarias | Solo `ExampleUnitTest` | IE 3.2.1 = 0 |
 | APK firmado | Sin `signingConfigs` ni `.jks` | IE 3.3.1 = 0 |
@@ -93,7 +91,7 @@ Estos puntos no están explícitos en el plan, pero si no se corrigen, la integr
 5. **`MainActivity` no maneja sesión persistida ni botón atrás.**
    - `usuarioId` parte en `"USR-001"`.
    - `onVerTramite` está vacío.
-   - **Acción:** `SessionManager`, `BackHandler` y logout real.
+   - **Acción pendiente:** `SessionManager`, `BackHandler` y logout persistente. El logout en memoria ya está conectado para los tres perfiles.
 
 6. **Los IDs de trámites se generan con `(1000..9999).random()`.**
    - Pueden colisionar.
@@ -103,16 +101,13 @@ Estos puntos no están explícitos en el plan, pero si no se corrigen, la integr
    - `DatabaseSeeder.seedIfEmpty()` inserta usuarios y trámites locales al iniciar.
    - **Acción:** el backend es la fuente de verdad; el seeder local queda solo como respaldo de caché y debe usar los mismos IDs/correos demo.
 
-8. **No hay campo de fecha de creación ni de firma en `Tramite`.**
+8. **No hay campo de fecha de creación en `Tramite`.**
    - Se ordena por `id` descendente.
-   - **Acción:** agregar `fechaCreacion` y `firmaEvidencia` en Room v3 y en el DTO del backend.
+   - **Acción:** agregar `fechaCreacion` y `fechaActualizacion` en Room y en el DTO del backend. La evidencia de firma ya existe.
 
-9. **`CrearTramiteScreen` inicializa `legibilidadConfirmada = true`.**
-   - El usuario puede enviar sin declarar nada.
-   - **Acción:** inicializar en `false` y exigir la declaración.
+9. ~~`CrearTramiteScreen` inicializa `legibilidadConfirmada = true`.~~ **Resuelto:** inicia en `false` y exige la declaración.
 
-10. **`RevisionTramiteDialog` permite aprobar trámites `FINALIZADO` y no exige checkbox.**
-    - **Acción:** bloquear acciones según estado y agregar `Checkbox` obligatorio.
+10. ~~`RevisionTramiteDialog` permite aprobar trámites `FINALIZADO` y no exige checkbox.~~ **Resuelto:** checkbox obligatorio, bloqueo por estado y validación en repositorio.
 
 ---
 
@@ -1319,11 +1314,11 @@ Ese `run` cambia estado durante la composición. Moverlo a un `LaunchedEffect` o
 
 ### 9.1 Campos nuevos
 
-| Campo | Dónde | Tipo | Motivo |
+| Campo | Dónde | Tipo | Estado |
 |---|---|---|---|
-| `firmaEvidencia` | `Tramite` / `TramiteEntity` | `String?` | Evidencia de firma simulada. |
-| `fechaCreacion` | `Tramite` / `TramiteEntity` | `String` | Ordenar por fecha real. |
-| `fechaActualizacion` | `Tramite` / `TramiteEntity` | `String?` | Mostrar última actualización. |
+| `firmaEvidencia` | `Tramite` / `TramiteEntity` | `String?` | Implementado en Room v3. |
+| `fechaCreacion` | `Tramite` / `TramiteEntity` | `String` | Pendiente; hoy se ordena por ID. |
+| `fechaActualizacion` | `Tramite` / `TramiteEntity` | `String?` | Pendiente; los eventos de historial ya tienen fecha. |
 
 Opcional:
 
@@ -1333,10 +1328,14 @@ Opcional:
 
 ### 9.2 Migración
 
-- Subir `NotixDatabase` a `version = 3`.
-- Mantener `fallbackToDestructiveMigration()` porque Room es caché.
-- Documentar en el README que la caché local se reconstruye desde el backend.
-- Si se quiere conservar la caché, crear una `Migration(2, 3)` con `ALTER TABLE`. Para la EP4 no es obligatorio.
+- La versión 3 ya está aplicada con `MIGRATION_2_3` explícita:
+  ```sql
+  ALTER TABLE tramites ADD COLUMN firmaEvidencia TEXT
+  ```
+- Esta migración conserva usuarios, trámites, documentos, historial y avisos.
+- `fallbackToDestructiveMigration()` se mantiene solo como respaldo para versiones futuras sin ruta definida.
+- Si más adelante Room pasa a ser caché del backend, se podrá volver a evaluar la estrategia destructiva.
+- Para la EP4 no es necesario mover la evidencia de firma a un formato más complejo: sigue siendo una simulación.
 
 ### 9.3 Mapeo
 

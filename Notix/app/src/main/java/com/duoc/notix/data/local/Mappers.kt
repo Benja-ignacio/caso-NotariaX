@@ -62,6 +62,7 @@ fun TramiteConDetalles.toDomain(): Tramite {
         ),
         observacion = tramite.observacion,
         legibilidadConfirmada = tramite.legibilidadConfirmada,
+        firmaEvidencia = tramite.firmaEvidencia,
         historial = historial.map {
             EventoHistorial(
                 descripcion = it.descripcion,
@@ -88,7 +89,8 @@ fun Tramite.toEntities(): Triple<TramiteEntity, List<DocumentoEntity>, List<Even
         antecedentesCorreoContacto = antecedentes.correoContacto,
         antecedentesComuna = antecedentes.comuna,
         observacion = observacion,
-        legibilidadConfirmada = legibilidadConfirmada
+        legibilidadConfirmada = legibilidadConfirmada,
+        firmaEvidencia = firmaEvidencia
     )
 
     val documentoEntities = documentos.map {

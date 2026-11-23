@@ -19,8 +19,10 @@ Aplicación Android académica para el caso **NotariaX** (DSY1105, Duoc UC). Per
 | Persistencia con Room | ✅ |
 | Bandeja del notario, aprobar y devolver | ✅ |
 | Historial y avisos en base de datos | ✅ |
-| Firma simulada real | ⚠️ Pendiente (solo declaración) |
-| Corregir y reenviar tras devolución | ❌ Pendiente |
+| Firma simulada obligatoria (trazo/e-token/notarial) | ✅ |
+| Corregir y reenviar tras devolución | ✅ |
+| Confirmación de legibilidad al aprobar | ✅ |
+| Logout Persona / Empresa / Notario | ✅ |
 | Notificaciones del sistema | ❌ Pendiente |
 | Pruebas unitarias/UI | ⚠️ Solo de ejemplo |
 
@@ -34,7 +36,7 @@ La app usa **Room** (`notix_database`) como fuente de verdad. Se guardan:
 - Historial de cambios de estado
 - Avisos y su estado de lectura
 
-Los datos **sobreviven al cierre de la app**. La sesión iniciada **no** se conserva. Los cambios de esquema usan `fallbackToDestructiveMigration()`, por lo que una nueva versión de la base puede borrar los datos.
+Los datos **sobreviven al cierre de la app**. La sesión iniciada **no** se conserva. La base está en versión 3 y la migración 2 → 3 (`tramites.firmaEvidencia`) conserva los datos; `fallbackToDestructiveMigration()` queda solo como respaldo si falta una ruta de migración.
 
 Todos los detalles están en [docs/Documentacion_Notix.md](docs/Documentacion_Notix.md#6-persistencia-de-datos-room).
 
@@ -78,3 +80,5 @@ caso-NotariaX/
 ## Tecnologías
 
 Kotlin · Jetpack Compose · Material 3 · Room · KSP · ViewModel · StateFlow · Coroutines.
+
+> Estado EP4: cerrada la Fase 1 de flujos (firma simulada, corrección/reenvío, legibilidad obligatoria, logout). Siguen pendientes microservicios Spring Boot, Retrofit, API externa, pruebas con cobertura ≥ 80 %, APK firmado y evidencias de entrega.

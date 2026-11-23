@@ -1,8 +1,6 @@
 package com.duoc.notix.ui.screens
 
-import android.content.Context
 import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -63,8 +61,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.duoc.notix.data.model.FormatoTramite
 import com.duoc.notix.data.model.TipoCuenta
+import com.duoc.notix.ui.components.FirmaSimuladaDialog
 import com.duoc.notix.ui.components.notixTextFieldColors
 import com.duoc.notix.ui.theme.NotixColors
+import com.duoc.notix.util.obtenerNombreArchivo
 import com.duoc.notix.viewmodel.CrearTramiteViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +80,8 @@ fun CrearTramiteScreen(
     )
 ) {
     val context = LocalContext.current
-    var legibilidadConfirmada by remember { mutableStateOf(true) }
+    var legibilidadConfirmada by remember { mutableStateOf(false) }
+    var mostrarFirma by remember { mutableStateOf(false) }
     var mostrarModalConfirmacion by remember { mutableStateOf(false) }
 
     // Selector nativo de archivos de Android
@@ -332,7 +333,7 @@ fun CrearTramiteScreen(
             Button(
                 onClick = {
                     if (vm.validarFormulario()) {
-                        mostrarModalConfirmacion = true
+                        mostrarFirma = true
                     }
                 },
                 enabled = !vm.uiState.guardando && legibilidadConfirmada,
@@ -356,6 +357,19 @@ fun CrearTramiteScreen(
                 }
             }
         }
+    }
+
+    // Paso de firma simulado, obligatorio antes del resumen final
+    if (mostrarFirma) {
+        FirmaSimuladaDialog(
+            tipoFirma = formato.firmaRequerida,
+            onDismiss = { mostrarFirma = false },
+            onConfirmar = { evidencia ->
+                vm.onFirmaConfirmada(evidencia)
+                mostrarFirma = false
+                mostrarModalConfirmacion = true
+            }
+        )
     }
 
     // Modal de Confirmaciones previo al guardado (Requisito D)
@@ -387,6 +401,7 @@ fun CrearTramiteScreen(
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("• Formato: ${formato.nombre}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = NotixColors.Tinta)
                             Text("• Tipo de Firma: ${formato.firmaRequerida.etiqueta}", fontSize = 13.sp, color = NotixColors.Tinta)
+                            Text("• Evidencia de firma: ${vm.firmaEvidencia ?: "sin firma"} (simulada)", fontSize = 13.sp, color = NotixColors.Tinta)
                             Text("• Solicitante: ${vm.nombreCompleto}", fontSize = 13.sp, color = NotixColors.Tinta)
                             Text("• RUN: ${vm.run}", fontSize = 13.sp, color = NotixColors.Tinta)
                             Text("• Correo: ${vm.correo}", fontSize = 13.sp, color = NotixColors.Tinta)
@@ -429,16 +444,4 @@ fun CrearTramiteScreen(
             }
         )
     }
-}
-
-private fun obtenerNombreArchivo(context: Context, uri: Uri): String? {
-    if (uri.scheme == "content") {
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex != -1) return cursor.getString(nameIndex)
-            }
-        }
-    }
-    return uri.path?.substringAfterLast('/')
 }

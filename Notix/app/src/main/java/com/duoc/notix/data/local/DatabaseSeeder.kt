@@ -64,6 +64,7 @@ object DatabaseSeeder {
             solicitanteNombre = usuarioDemo.nombreCompleto,
             tipoFirma = TipoFirma.SIMPLE,
             estado = EstadoTramite.ENVIADO,
+            firmaEvidencia = "SIMPLE_CANVAS",
             documentos = listOf(
                 Documento(nombre = "poder_simple_demo.pdf", tamanoKb = 250, estado = EstadoDocumento.ACEPTADO)
             ),
@@ -107,6 +108,7 @@ object DatabaseSeeder {
                 formato = FormatoTramite("F01", "Poder simple", "Poderes", TipoFirma.SIMPLE),
                 solicitanteId = u.id, solicitanteNombre = u.nombreCompleto,
                 tipoFirma = TipoFirma.SIMPLE, estado = EstadoTramite.DEVUELTO,
+                firmaEvidencia = "SIMPLE_CANVAS",
                 documentos = listOf(
                     Documento("poder_demo.pdf", 90, EstadoDocumento.ACEPTADO),
                     Documento("anexo_demo.jpg", 300, EstadoDocumento.OBSERVADO)
@@ -123,6 +125,7 @@ object DatabaseSeeder {
                 formato = FormatoTramite("F02", "Declaración jurada simple", "Declaraciones", TipoFirma.AVANZADA),
                 solicitanteId = u.id, solicitanteNombre = u.nombreCompleto,
                 tipoFirma = TipoFirma.AVANZADA, estado = EstadoTramite.ENVIADO,
+                firmaEvidencia = "AVANZADA_TOKEN_SIMULADO",
                 documentos = listOf(Documento("declaracion_demo.pdf", 120, EstadoDocumento.ACEPTADO)),
                 antecedentes = antecedentes(),
                 historial = listOf(EventoHistorial("Enviado al notario", "10/10/2026 16:20", TipoCuenta.PERSONA))
@@ -132,6 +135,8 @@ object DatabaseSeeder {
                 formato = FormatoTramite("F03", "Autorización de viaje", "Familia", TipoFirma.NOTARIADA),
                 solicitanteId = u.id, solicitanteNombre = u.nombreCompleto,
                 tipoFirma = TipoFirma.NOTARIADA, estado = EstadoTramite.FINALIZADO,
+                firmaEvidencia = "NOTARIADA_SIMULADA",
+                legibilidadConfirmada = true,
                 documentos = listOf(Documento("viaje_demo.pdf", 150, EstadoDocumento.ACEPTADO)),
                 antecedentes = antecedentes(),
                 historial = listOf(

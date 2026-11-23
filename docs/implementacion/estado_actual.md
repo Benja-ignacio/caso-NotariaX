@@ -8,11 +8,13 @@
 
 ## 1. Resumen ejecutivo
 
-Notix es una app Android académica para representar trámites notariales con información ficticia. La entrega implementada en el repositorio es una app Kotlin/Jetpack Compose con arquitectura **Compose → ViewModel → Repository → Room**. Tiene login/registro local, selección de formatos, creación y consulta de trámites, bandeja notarial, devolución/aprobación, historial y avisos locales.
+Notix es una app Android académica para representar trámites notariales con información ficticia. La entrega implementada en el repositorio es una app Kotlin/Jetpack Compose con arquitectura **Compose → ViewModel → Repository → Room**. Tiene login/registro local, selección de formatos, creación y consulta de trámites, firma simulada obligatoria, bandeja notarial, devolución/aprobación con legibilidad confirmada, corrección/reenvío, historial, avisos locales y logout para los tres perfiles.
 
-En el árbol de fuentes inspeccionado **no existen** microservicios Spring Boot, capa Retrofit, API externa, flujo de firma simulada, corrección/reenvío, pruebas unitarias funcionales, configuración de APK firmado ni artefactos `.jks`/APK. Esos elementos son objetivos de la EP4, no funcionalidades presentes.
+En el árbol de fuentes inspeccionado **no existen** microservicios Spring Boot, capa Retrofit, API externa, pruebas unitarias funcionales, configuración de APK firmado ni artefactos `.jks`/APK. Esos elementos son objetivos de la EP4, no funcionalidades presentes.
 
 La app no procesa trámites reales. Mantener datos de demostración y no incorporar credenciales, personas, firmas, documentos ni sistemas productivos.
+
+> **Fase 1 de la EP4 cerrada el 23-11-2026:** firma simulada, corregir/reenviar, legibilidad obligatoria, bloqueo de estados del notario y logout Persona/Empresa. Verificado con compilación y `assembleDebug`; no se ejecutó la app en emulador ni se midió cobertura.
 
 ## 2. Estructura real
 
@@ -81,8 +83,7 @@ No se observó un directorio `backend/`, `ms-usuarios/`, `ms-tramites/` ni módu
 
 - Login y registro derivan al notario a la bandeja y a persona/empresa a Mis Trámites.
 - `usuarioId` se conserva con `rememberSaveable`, pero parte con el valor por defecto `USR-001`; la sesión no se restaura de Room ni de preferencias al reiniciar.
-- El logout del notario vuelve a `Login`, no a `Welcome`.
-- No hay callback de logout conectado para Persona/Empresa.
+- El logout de Notario, Persona y Empresa vuelve a `Welcome` con confirmación y limpia el usuario en memoria. No hay `SessionManager` persistente.
 - `onVerTramite` en `MainActivity` está vacío; el detalle lo maneja actualmente un diálogo dentro de `MisTramitesScreen`.
 - No se observó un `BackHandler` para coordinar el botón atrás.
 
@@ -98,36 +99,38 @@ Las contraseñas se guardan en texto plano en Room para la demo. No reutilizar e
 - `CrearTramiteViewModel` completa antecedentes desde el usuario, valida RUN usando `RutValidator`, exige nombre, correo de forma superficial (`@`) y comuna.
 - El selector de archivos usa `ActivityResultContracts.GetContent`; la app conserva el nombre del archivo como metadato, no el contenido ni una URI persistente. Si no se selecciona uno, el ViewModel inventa un nombre PDF de demostración. Por tanto, la app actualmente no exige seleccionar un documento real.
 - El ID se genera localmente con `TX-2026-${(1000..9999).random()}`; puede colisionar y no proviene de un backend.
+- Al crear se exige completar el paso de firma simulada según `TipoFirma`: trazo en `Canvas` (`SIMPLE_CANVAS`), código de 6 dígitos (`AVANZADA_TOKEN_SIMULADO`) o autorización notarial (`NOTARIADA_SIMULADA`). La evidencia se guarda en `Tramite.firmaEvidencia`.
 - Al crear se inserta el trámite, documentos e historial en Room y se agrega aviso local. No hay transmisión remota.
 - Mis Trámites y Bandeja del Notario observan `Flow` de Room y presentan filtros/contadores. Ordenan por ID descendente, no por fecha.
-- El notario puede aprobar o devolver. La devolución exige observación no vacía; la aprobación no exige confirmar legibilidad. Los botones se muestran para trámites en cualquier estado y el ViewModel/repository no rechazan transiciones inválidas.
-- Al cambiar estado, `TramiteRepository` actualiza trámite, historial y aviso en llamadas separadas; no están agrupadas en una transacción única. Considerar consistencia/atomicidad al incorporar backend.
-- No hay acción para que una persona corrija y reenvíe un trámite `DEVUELTO`.
+- El notario solo puede actuar sobre trámites `ENVIADO`. Aprobar exige marcar el checkbox de legibilidad y persiste `legibilidadConfirmada = true`; devolver exige observación no vacía. El repositorio también rechaza transiciones inválidas.
+- Un trámite `DEVUELTO` puede corregirse y reenviarse desde el detalle de la persona: se editan antecedentes, se exige reemplazar documentos `OBSERVADO`, se limpia la observación, vuelve a `ENVIADO` y se registran historial, aviso y `legibilidadConfirmada = false`.
+- Las operaciones de cambio de estado y reenvío usan transacciones de Room para trámite, documentos, historial y aviso.
+- No hay acción para cancelar/eliminar un trámite desde la UI.
 
 ### 5.4 Base de datos Room
 
-`NotixDatabase` registra cinco entidades: `UsuarioEntity`, `TramiteEntity`, `DocumentoEntity`, `EventoHistorialEntity` y `AvisoEntity`. Está en versión **2**, con `exportSchema = false` y `fallbackToDestructiveMigration()`.
+`NotixDatabase` registra cinco entidades: `UsuarioEntity`, `TramiteEntity`, `DocumentoEntity`, `EventoHistorialEntity` y `AvisoEntity`. Está en versión **3**, con `exportSchema = false`, migración explícita `MIGRATION_2_3` (agrega `tramites.firmaEvidencia`) y `fallbackToDestructiveMigration()` como respaldo.
 
 - Hay relación de documentos e historial con trámite y borrado en cascada. Los avisos no tienen FK.
 - Los archivos adjuntos no se almacenan. Los documentos guardan nombre, tamaño y estado.
 - Room es la única fuente de datos existente; describirlo como “caché” solo será correcto después de que se implemente y use un backend remoto.
-- Cambiar entidades requiere incrementar versión y definir conscientemente la migración. El fallback actual puede borrar la base local.
+- Cambiar entidades requiere incrementar versión y definir la migración. La 2 → 3 conserva datos; el fallback actual puede borrar la base local si falta una ruta.
 - `DatabaseSeeder` asegura usuarios demo en cada inicio y agrega trámites solamente si no encuentra ninguno. Evitar que el seeder sobrescriba o compita con datos remotos cuando se conecte la API.
 
 ## 6. Hallazgos críticos para no seguir afirmaciones incorrectas del plan
 
 La guía EP4 contiene propuestas, pero algunos diagnósticos deben verificarse contra el fuente y no copiarse a ciegas:
 
-1. **Legibilidad en creación:** `CrearTramiteScreen` inicializa `legibilidadConfirmada = true`. Ese booleano corresponde a la declaración de la persona que crea el trámite, mientras que el campo `Tramite.legibilidadConfirmada` tiene comentario de confirmación del notario. No confundir ambas responsabilidades. La condición debe diseñarse según el flujo y la pauta, y la confirmación del notario no puede quedar marcada automáticamente.
-2. **Legibilidad en revisión:** `RevisionTramiteDialog` no contiene checkbox. `BandejaNotarioViewModel.aprobarTramite` no valida estado ni legibilidad.
+1. **Legibilidad en creación (resuelto):** `CrearTramiteScreen` ahora inicializa `legibilidadConfirmada = false` y exige marcar la declaración de la persona que crea el trámite. Ese booleano es independiente de `Tramite.legibilidadConfirmada`, que sigue siendo la confirmación del notario al aprobar.
+2. **Legibilidad en revisión (resuelto):** `RevisionTramiteDialog` incluye checkbox obligatorio, bloquea Aprobar sin marcarlo y persiste `legibilidadConfirmada = true`. `BandejaNotarioViewModel` y `TramiteRepository` también validan estado y legibilidad.
 3. **Autenticación y pruebas:** los ViewModels de login/registro no tienen inyección; los tests que los instancien requieren refactor o una estrategia deliberada. No es suficiente añadir MockK sin separar construcción de Room.
 4. **Dos paquetes repository:** no asumir que Auth y Tramite comparten el mismo package.
-5. **“Firma” en el modelo:** `TipoFirma` describe el formato; el dominio `Tramite` no tiene evidencia/estado de firma. Cambiar DTOs/modelos/Room requiere mapear coherentemente todas las capas.
+5. **“Firma” en el modelo (resuelto):** `Tramite` incorpora `firmaEvidencia` con valores ficticios por `TipoFirma`; no representa una firma legal ni certificados reales.
 6. **CRUD:** no existe eliminar/cancelar trámite en UI, repository o DAO. La pauta pide flujos CRUD desde interfaz; definir qué representa DELETE y sus efectos sobre historial/avisos antes de implementarlo.
 7. **Fechas e IDs:** no hay fecha de creación en `Tramite`; los eventos usan strings formateados y los IDs aleatorios no son secuenciales. No ordenar por ID esperando orden cronológico.
 8. **API externa recomendada ≠ integrada:** Mindicador es una recomendación del plan técnico, no una decisión confirmada por el código. Si se elige, aislar sus DTO/client/repository y no hacer que su disponibilidad condicione trámites.
 9. **Room como caché es una decisión futura:** el diseño remoto primero + Room caché descrito en `implementacion_ep4_notix.md` todavía no existe. No reemplazar repositorios locales antes de definir cómo se actualizan las pantallas observadas por Flow.
-10. **No declarar verificación no realizada:** este documento se basa en inspección estática. No afirma que compile, corra en dispositivo, alcance cobertura o pase una defensa.
+10. **No declarar verificación no realizada:** este documento se basa en inspección estática y en la compilación/`assembleDebug` ejecutados. No afirma que la app se haya probado en emulador, que alcance cobertura o que pase una defensa.
 
 ## 7. Objetivo EP4 frente al estado observado
 
@@ -137,9 +140,9 @@ La guía EP4 contiene propuestas, pero algunos diagnósticos deben verificarse c
 | `ms-usuarios` y `ms-tramites` Spring Boot + BD | No encontrados en el repositorio |
 | Retrofit contra microservicios | No declarado ni implementado |
 | API externa visible en UI | No declarada ni implementada |
-| Firma simulada específica por `TipoFirma` | No implementada; existe descripción en enum, no captura/confirmación en el flujo |
-| Corregir/re-enviar devueltos | No implementado |
-| Confirmación de legibilidad al aprobar | No implementada en el diálogo |
+| Firma simulada específica por `TipoFirma` | Implementada y obligatoria antes de enviar; evidencia persistida en Room |
+| Corregir/re-enviar devueltos | Implementado, con reemplazo de documentos observados e historial |
+| Confirmación de legibilidad al aprobar | Implementada en diálogo, ViewModel y repositorio |
 | DELETE/cancelación desde UI | No implementado |
 | Tests de lógica y cobertura ≥80 % | No demostrados; hay únicamente test de ejemplo |
 | APK firmado y `.jks` | No encontrados; Gradle no tiene `signingConfigs` |
@@ -151,7 +154,7 @@ La EP4 requiere app funcional integrada, microservicios con BD y endpoints, inte
 
 Seguir el plan `implementacion_ep4_notix.md`, pero completar cada hito sin romper el flujo existente:
 
-1. Cerrar y validar los flujos pendientes de la app, con transiciones explícitas (`ENVIADO → FINALIZADO/DEVUELTO`, `DEVUELTO → ENVIADO`) y validaciones tanto en UI como en capa de negocio/backend.
+1. ~~Cerrar y validar los flujos pendientes de la app~~ **Hecho (Fase 1, 23-11-2026):** firma simulada, reenvío (`DEVUELTO → ENVIADO`), legibilidad obligatoria, bloqueo de estados y logout. Verificado con compilación y `assembleDebug`; falta prueba manual en emulador.
 2. Crear los microservicios con contratos acordados, persistencia y datos ficticios reproducibles. No inventar contratos distintos entre app y backend.
 3. Añadir Retrofit y capa remota, definir fuente de verdad y estrategia de error/refresco antes de reemplazar escrituras Room. Conservar los `Flow` que alimentan Compose o actualizar deliberadamente las pantallas.
 4. Añadir API externa de forma aislada, con carga/error/fallback; nunca bloquear operaciones notariales simuladas.
@@ -178,6 +181,8 @@ Reglas para cualquier IA que continúe:
 | Operaciones de trámites | `Notix/app/src/main/java/com/duoc/notix/repository/TramiteRepository.kt` (package `repository`) |
 | Reglas de RUN | `Notix/app/src/main/java/com/duoc/notix/data/validation/RutValidator.kt` |
 | Flujos de UI | `Notix/app/src/main/java/com/duoc/notix/ui/screens/` |
+| Firma simulada | `Notix/app/src/main/java/com/duoc/notix/ui/components/FirmaSimuladaDialog.kt` |
+| Corrección y reenvío | `Notix/app/src/main/java/com/duoc/notix/ui/components/CorreccionTramiteDialog.kt` |
 | Estado y casos de uso de pantalla | `Notix/app/src/main/java/com/duoc/notix/viewmodel/` |
 | Versiones y plugins | `Notix/gradle/libs.versions.toml`, `Notix/app/build.gradle.kts` |
 | Permisos Android | `Notix/app/src/main/AndroidManifest.xml` |

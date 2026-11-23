@@ -47,14 +47,14 @@ Actualmente **Notix** funciona 100 % offline con Room. Para obtener el 100 % de 
 
 Antes de conectar servidores, cierra las brechas detectadas en el estado actual de **Notix**:
 
-- [ ] **Corrección y reenvío tras devolución:** En `MisTramitesScreen`, cuando un trámite esté en estado `DEVUELTO`, habilitar un botón *"Corregir y reenviar"* que permita editar antecedentes o adjuntar un nuevo documento y devolverlo al estado `ENVIADO` (registrando el evento en el historial).
-- [ ] **Representación de firma simulada:** Agregar un paso visual antes de confirmar el envío según `TipoFirma`:
+- [x] **Corrección y reenvío tras devolución:** En `MisTramitesScreen`, cuando un trámite esté en estado `DEVUELTO`, habilitar un botón *"Corregir y reenviar"* que permita editar antecedentes o adjuntar un nuevo documento y devolverlo al estado `ENVIADO` (registrando el evento en el historial).
+- [x] **Representación de firma simulada:** Agregar un paso visual antes de confirmar el envío según `TipoFirma`:
   - `SIMPLE`: recuadro táctil (`Canvas`) para dibujar trazo ficticio.
   - `AVANZADA` / `NOTARIADA`: modal de confirmación simulada de e-token o certificado digital.
-- [ ] **Blindar el diálogo del Notario (`BandejaNotarioScreen`):**
+- [x] **Blindar el diálogo del Notario (`BandejaNotarioScreen`):**
   - Agregar el `Checkbox` obligatorio ligado a `legibilidadConfirmada` para habilitar el botón **Aprobar**.
   - Ocultar o deshabilitar los botones **Aprobar / Devolver** cuando el trámite ya esté en estado `FINALIZADO`.
-- [ ] **Cierre de sesión (Logout) en Persona/Empresa:** Conectar la acción de salida en la barra superior o perfil para regresar a `WelcomeScreen` y facilitar el cambio de roles durante la demostración.
+- [x] **Cierre de sesión (Logout) en Persona/Empresa:** Conectar la acción de salida en la barra superior o perfil para regresar a `WelcomeScreen` y facilitar el cambio de roles durante la demostración.
 
 ---
 

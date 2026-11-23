@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Notifications
@@ -38,9 +39,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,6 +63,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.duoc.notix.data.model.EstadoTramite
 import com.duoc.notix.data.model.Tramite
 import com.duoc.notix.ui.components.BarraInferiorPersona
+import com.duoc.notix.ui.components.CorreccionTramiteDialog
 import com.duoc.notix.ui.components.EstadoChip
 import com.duoc.notix.ui.components.TramiteCard
 import com.duoc.notix.ui.theme.NotixColors
@@ -72,6 +77,7 @@ fun MisTramitesScreen(
     onNuevoTramite: () -> Unit = {},
     onVerTramite: (String) -> Unit = {},
     onAvisos: () -> Unit = {},
+    onCerrarSesion: () -> Unit = {},
     vm: MisTramitesViewModel = viewModel(
         key = usuarioId,
         factory = MisTramitesViewModel.factory(LocalContext.current, usuarioId)
@@ -79,6 +85,7 @@ fun MisTramitesScreen(
 ) {
     val state by vm.uiState.collectAsState()
     var tramiteDetalle by remember { mutableStateOf<Tramite?>(null) }
+    var tramiteACorregir by remember { mutableStateOf<Tramite?>(null) }
 
     MisTramitesContent(
         state = state,
@@ -92,13 +99,42 @@ fun MisTramitesScreen(
                 onVerTramite(id)
             }
         },
-        onAvisos = onAvisos
+        onAvisos = onAvisos,
+        onCerrarSesion = onCerrarSesion
     )
 
     tramiteDetalle?.let { tramite ->
         DetalleClienteDialog(
             tramite = tramite,
-            onDismiss = { tramiteDetalle = null }
+            onDismiss = { tramiteDetalle = null },
+            onCorregir = {
+                vm.limpiarErrorOperacion()
+                tramiteACorregir = tramite
+                tramiteDetalle = null
+            }
+        )
+    }
+
+    tramiteACorregir?.let { tramite ->
+        CorreccionTramiteDialog(
+            tramite = tramite,
+            error = vm.errorOperacion,
+            procesando = vm.operacionEnCurso,
+            onDismiss = {
+                if (!vm.operacionEnCurso) {
+                    tramiteACorregir = null
+                    vm.limpiarErrorOperacion()
+                }
+            },
+            onReenviar = { antecedentes, documentoNombre, comentario ->
+                vm.reenviarTramite(
+                    tramite = tramite,
+                    antecedentes = antecedentes,
+                    nuevoDocumentoNombre = documentoNombre,
+                    comentario = comentario,
+                    onExito = { tramiteACorregir = null }
+                )
+            }
         )
     }
 }
@@ -109,8 +145,49 @@ fun MisTramitesContent(
     onFiltro: (FiltroTramites) -> Unit,
     onNuevoTramite: () -> Unit,
     onVerTramite: (String) -> Unit,
-    onAvisos: () -> Unit
+    onAvisos: () -> Unit,
+    onCerrarSesion: () -> Unit
 ) {
+    var confirmarCierreSesion by remember { mutableStateOf(false) }
+
+    if (confirmarCierreSesion) {
+        AlertDialog(
+            onDismissRequest = { confirmarCierreSesion = false },
+            containerColor = Color.White,
+            title = {
+                Text(
+                    "Cerrar sesión",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NotixColors.Tinta
+                )
+            },
+            text = {
+                Text(
+                    "¿Quieres cerrar tu sesión y volver al inicio?",
+                    fontSize = 14.sp,
+                    color = NotixColors.Gris
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmarCierreSesion = false
+                        onCerrarSesion()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NotixColors.Brand)
+                ) {
+                    Text("Cerrar sesión")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarCierreSesion = false }) {
+                    Text("Cancelar", color = NotixColors.Gris)
+                }
+            }
+        )
+    }
+
     Scaffold(
         containerColor = NotixColors.Fondo,
         bottomBar = {
@@ -130,7 +207,8 @@ fun MisTramitesContent(
                         perfil = state.perfil,
                         nombre = state.nombre,
                         avisosSinLeer = state.avisosSinLeer,
-                        onCampana = { state.alerta?.let { onVerTramite(it.id) } ?: onAvisos() }
+                        onCampana = { state.alerta?.let { onVerTramite(it.id) } ?: onAvisos() },
+                        onCerrarSesion = { confirmarCierreSesion = true }
                     )
                 }
 
@@ -219,7 +297,8 @@ private fun Encabezado(
     perfil: String,
     nombre: String,
     avisosSinLeer: Boolean,
-    onCampana: () -> Unit
+    onCampana: () -> Unit,
+    onCerrarSesion: () -> Unit
 ) {
     Row(
         Modifier.fillMaxWidth(),
@@ -234,7 +313,16 @@ private fun Encabezado(
                 fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif
             )
         }
-        Campana(avisosSinLeer = avisosSinLeer, onClick = onCampana)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Campana(avisosSinLeer = avisosSinLeer, onClick = onCampana)
+            IconButton(onClick = onCerrarSesion) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = "Cerrar sesión",
+                    tint = NotixColors.Tinta
+                )
+            }
+        }
     }
 }
 
@@ -319,7 +407,8 @@ private fun AlertaBanner(tramite: Tramite, onClick: () -> Unit) {
 @Composable
 private fun DetalleClienteDialog(
     tramite: Tramite,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onCorregir: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -390,6 +479,12 @@ private fun DetalleClienteDialog(
                 tramite.actuaEnNombreDe?.let {
                     Text("• En representación de: $it", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NotixColors.Tinta)
                 }
+                tramite.firmaEvidencia?.let {
+                    Text("• Firma simulada: ${tramite.tipoFirma.etiqueta} ($it)", fontSize = 13.sp, color = NotixColors.Tinta)
+                }
+                if (tramite.legibilidadConfirmada) {
+                    Text("• Legibilidad confirmada por el notario", fontSize = 13.sp, color = NotixColors.Brand)
+                }
 
                 if (tramite.historial.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
@@ -407,7 +502,14 @@ private fun DetalleClienteDialog(
             ) {
                 Text("Entendido")
             }
-        }
+        },
+        dismissButton = if (tramite.estado == EstadoTramite.DEVUELTO) {
+            {
+                OutlinedButton(onClick = onCorregir) {
+                    Text("Corregir y reenviar", color = NotixColors.Tinta)
+                }
+            }
+        } else null
     )
 }
 

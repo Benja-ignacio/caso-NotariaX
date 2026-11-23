@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -14,7 +16,7 @@ import androidx.room.TypeConverters
         EventoHistorialEntity::class,
         AvisoEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(NotixTypeConverters::class)
@@ -28,6 +30,16 @@ abstract class NotixDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: NotixDatabase? = null
 
+        /**
+         * Room sigue siendo la fuente de verdad mientras no exista backend.
+         * La migración conserva usuarios, trámites, documentos, historial y avisos.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tramites ADD COLUMN firmaEvidencia TEXT")
+            }
+        }
+
         fun getDatabase(context: Context): NotixDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -35,6 +47,7 @@ abstract class NotixDatabase : RoomDatabase() {
                     NotixDatabase::class.java,
                     "notix_database"
                 )
+                .addMigrations(MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

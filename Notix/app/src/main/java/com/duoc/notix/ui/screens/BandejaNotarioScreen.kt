@@ -27,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,7 +72,7 @@ fun BandejaNotarioScreen(
     )
 ) {
     val state by vm.uiState.collectAsState()
-    var tramiteParaRevisar by remember { mutableStateOf<Tramite?>(null) }
+    var tramiteIdParaRevisar by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         containerColor = NotixColors.Fondo,
@@ -141,7 +142,7 @@ fun BandejaNotarioScreen(
                 items(state.tramites, key = { it.id }) { tramite ->
                     TramiteNotarioCard(
                         tramite = tramite,
-                        onRevisar = { tramiteParaRevisar = tramite }
+                        onRevisar = { tramiteIdParaRevisar = tramite.id }
                     )
                 }
 
@@ -158,18 +159,17 @@ fun BandejaNotarioScreen(
         }
     }
 
+    val tramiteParaRevisar = state.tramites.firstOrNull { it.id == tramiteIdParaRevisar }
     tramiteParaRevisar?.let { tramite ->
         RevisionTramiteDialog(
             tramite = tramite,
-            onDismiss = { tramiteParaRevisar = null },
-            onAprobar = {
-                vm.aprobarTramite(tramite)
-                tramiteParaRevisar = null
+            error = vm.errorOperacion,
+            onDismiss = {
+                tramiteIdParaRevisar = null
+                vm.limpiarError()
             },
-            onDevolver = { obs ->
-                vm.devolverTramite(tramite, obs)
-                tramiteParaRevisar = null
-            }
+            onAprobar = { legibilidad -> vm.aprobarTramite(tramite, legibilidad) },
+            onDevolver = { obs -> vm.devolverTramite(tramite, obs) }
         )
     }
 }
@@ -317,13 +317,17 @@ private fun TramiteNotarioCard(
 @Composable
 private fun RevisionTramiteDialog(
     tramite: Tramite,
+    error: String?,
     onDismiss: () -> Unit,
-    onAprobar: () -> Unit,
+    onAprobar: (Boolean) -> Unit,
     onDevolver: (String) -> Unit
 ) {
     var modoDevolver by remember { mutableStateOf(false) }
     var observacion by remember { mutableStateOf("") }
     var errorObservacion by remember { mutableStateOf<String?>(null) }
+    var legibilidadConfirmada by remember { mutableStateOf(false) }
+
+    val puedeActuar = tramite.estado == EstadoTramite.ENVIADO
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -352,6 +356,13 @@ private fun RevisionTramiteDialog(
                 tramite.actuaEnNombreDe?.let {
                     Text("En representación de: $it", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = NotixColors.Tinta)
                 }
+                tramite.firmaEvidencia?.let {
+                    Text(
+                        "Firma simulada: ${tramite.tipoFirma.etiqueta} ($it)",
+                        fontSize = 13.sp,
+                        color = NotixColors.Tinta
+                    )
+                }
 
                 if (tramite.documentos.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
@@ -361,7 +372,37 @@ private fun RevisionTramiteDialog(
                     }
                 }
 
-                if (modoDevolver) {
+                when (tramite.estado) {
+                    EstadoTramite.FINALIZADO -> Text(
+                        "Este trámite ya fue finalizado.",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NotixColors.FinalizadoTexto
+                    )
+                    EstadoTramite.DEVUELTO -> Text(
+                        "Esperando corrección del solicitante.",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NotixColors.AlertaTexto
+                    )
+                    EstadoTramite.ENVIADO -> Unit
+                }
+
+                if (puedeActuar && !modoDevolver) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = legibilidadConfirmada,
+                            onCheckedChange = { legibilidadConfirmada = it }
+                        )
+                        Text(
+                            "Confirmo que los documentos son legibles.",
+                            fontSize = 13.sp,
+                            color = NotixColors.Tinta
+                        )
+                    }
+                }
+
+                if (puedeActuar && modoDevolver) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = observacion,
@@ -376,11 +417,27 @@ private fun RevisionTramiteDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+
+                if (error != null) {
+                    Text(
+                        error,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NotixColors.AlertaTexto
+                    )
+                }
             }
         },
         confirmButton = {
-            if (modoDevolver) {
-                Button(
+            when {
+                !puedeActuar -> Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = NotixColors.Brand)
+                ) {
+                    Text("Cerrar")
+                }
+
+                modoDevolver -> Button(
                     onClick = {
                         if (observacion.isBlank()) {
                             errorObservacion = "Ingresa el motivo de devolución"
@@ -392,9 +449,10 @@ private fun RevisionTramiteDialog(
                 ) {
                     Text("Confirmar devolución")
                 }
-            } else {
-                Button(
-                    onClick = onAprobar,
+
+                else -> Button(
+                    onClick = { onAprobar(legibilidadConfirmada) },
+                    enabled = legibilidadConfirmada,
                     colors = ButtonDefaults.buttonColors(containerColor = NotixColors.Brand)
                 ) {
                     Icon(Icons.Outlined.Check, contentDescription = null)
@@ -403,17 +461,23 @@ private fun RevisionTramiteDialog(
                 }
             }
         },
-        dismissButton = {
-            if (modoDevolver) {
-                TextButton(onClick = { modoDevolver = false }) {
-                    Text("Cancelar", color = NotixColors.Gris)
+        dismissButton = when {
+            !puedeActuar -> null
+            modoDevolver -> {
+                {
+                    TextButton(onClick = { modoDevolver = false }) {
+                        Text("Cancelar", color = NotixColors.Gris)
+                    }
                 }
-            } else {
-                OutlinedButton(
-                    onClick = { modoDevolver = true },
-                    border = BorderStroke(1.dp, NotixColors.AlertaBorde)
-                ) {
-                    Text("Devolver con obs.", color = NotixColors.AlertaTexto)
+            }
+            else -> {
+                {
+                    OutlinedButton(
+                        onClick = { modoDevolver = true },
+                        border = BorderStroke(1.dp, NotixColors.AlertaBorde)
+                    ) {
+                        Text("Devolver con obs.", color = NotixColors.AlertaTexto)
+                    }
                 }
             }
         }

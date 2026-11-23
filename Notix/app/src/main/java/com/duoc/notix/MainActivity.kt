@@ -47,6 +47,12 @@ class MainActivity : ComponentActivity() {
                 var usuarioId by rememberSaveable { mutableStateOf("USR-001") }
                 var formatoSeleccionado by androidx.compose.runtime.remember { mutableStateOf<FormatoTramite?>(null) }
 
+                val cerrarSesion = {
+                    usuarioId = ""
+                    formatoSeleccionado = null
+                    pantallaActual = Pantalla.Welcome
+                }
+
                 when (pantallaActual) {
                     Pantalla.Welcome -> WelcomeScreen(
                         onNavigateToLogin = { pantallaActual = Pantalla.Login },
@@ -79,7 +85,8 @@ class MainActivity : ComponentActivity() {
                         usuarioId = usuarioId,
                         onNuevoTramite = { pantallaActual = Pantalla.CatalogoFormatos },
                         onVerTramite = { id -> /* Detalle modal en MisTramitesScreen */ },
-                        onAvisos = { pantallaActual = Pantalla.Avisos }
+                        onAvisos = { pantallaActual = Pantalla.Avisos },
+                        onCerrarSesion = cerrarSesion
                     )
                     Pantalla.CatalogoFormatos -> CatalogoFormatosScreen(
                         onSeleccionarFormato = { formato ->
@@ -102,11 +109,12 @@ class MainActivity : ComponentActivity() {
                     }
                     Pantalla.BandejaNotario -> BandejaNotarioScreen(
                         usuarioId = usuarioId,
-                        onCerrarSesion = { pantallaActual = Pantalla.Login }
+                        onCerrarSesion = cerrarSesion
                     )
                     Pantalla.Avisos -> AvisosScreen(
                         usuarioId = usuarioId,
-                        onVolver = { pantallaActual = Pantalla.MisTramites }
+                        onVolver = { pantallaActual = Pantalla.MisTramites },
+                        onCerrarSesion = cerrarSesion
                     )
                 }
             }

@@ -19,20 +19,28 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,12 +59,52 @@ import com.duoc.notix.viewmodel.AvisosViewModel
 fun AvisosScreen(
     usuarioId: String,
     onVolver: () -> Unit,
+    onCerrarSesion: () -> Unit = {},
     vm: AvisosViewModel = viewModel(
         key = usuarioId,
         factory = AvisosViewModel.factory(LocalContext.current, usuarioId)
     )
 ) {
     val avisos by vm.avisos.collectAsState()
+    var confirmarCierreSesion by remember { mutableStateOf(false) }
+
+    if (confirmarCierreSesion) {
+        AlertDialog(
+            onDismissRequest = { confirmarCierreSesion = false },
+            containerColor = Color.White,
+            title = {
+                Text(
+                    "Cerrar sesión",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NotixColors.Tinta
+                )
+            },
+            text = {
+                Text(
+                    "¿Quieres cerrar tu sesión y volver al inicio?",
+                    fontSize = 14.sp,
+                    color = NotixColors.Gris
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmarCierreSesion = false
+                        onCerrarSesion()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NotixColors.Brand)
+                ) {
+                    Text("Cerrar sesión")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarCierreSesion = false }) {
+                    Text("Cancelar", color = NotixColors.Gris)
+                }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = NotixColors.Fondo,
@@ -75,6 +123,15 @@ fun AvisosScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
+                            tint = NotixColors.Tinta
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { confirmarCierreSesion = true }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Cerrar sesión",
                             tint = NotixColors.Tinta
                         )
                     }

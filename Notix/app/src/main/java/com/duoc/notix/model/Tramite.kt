@@ -12,6 +12,7 @@ data class Tramite(
     val antecedentes: Antecedentes,
     val observacion: String? = null,         // texto del notario al devolver
     val legibilidadConfirmada: Boolean = false, // el notario la marca antes de aprobar
+    val firmaEvidencia: String? = null,      // evidencia simulada: SIMPLE_CANVAS, AVANZADA_TOKEN_SIMULADO, NOTARIADA_SIMULADA
     val historial: List<EventoHistorial>
 )
 
