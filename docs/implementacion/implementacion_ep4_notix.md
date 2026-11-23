@@ -3,7 +3,7 @@
 > **Proyecto:** Notix (Caso NotariaX)  
 > **Asignatura:** DSY1105 — Desarrollo de Aplicaciones Móviles  
 > **Entrega:** Evaluación Parcial 4  
-> **Base analizada:** código real en `Notix/`, plan `docs/plan_de_desarrollo_ep4_notix.md` y pauta `docs/Ev. Parcial 4_Encargo_Estudiante_ DSY1105.pdf`  
+> **Base analizada:** código real en `Notix/`, plan `plan_de_desarrollo_ep4_notix.md` y pauta `Ev. Parcial 4_Encargo_Estudiante_ DSY1105.pdf`
 > **Objetivo de este documento:** convertir el plan EP4 en una lista técnica de cambios concretos, con archivos, contratos, decisiones de arquitectura, pruebas y criterios de aceptación.
 
 ---

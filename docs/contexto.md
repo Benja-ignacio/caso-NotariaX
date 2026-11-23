@@ -153,26 +153,49 @@ Elementos que el MVP puede manejar para representar el proceso:
 - Las dependencias externas o firmas avanzadas se representan de manera comprensible mediante simulaciones.
 - El equipo demuestra el funcionamiento con casos de prueba y entrega documentación suficiente.
 
-## 10. Material de apoyo (pendiente de entrega por la notaría / docente)
+## 10. Evolución del proyecto: Evaluación Parcial 4 (EP4)
+
+El caso evolucionó desde la definición inicial del MVP hacia la **Evaluación Parcial 4 de DSY1105**. Notix ya cuenta con una aplicación Android en Kotlin y Jetpack Compose, persistencia local Room y flujos demostrativos para persona/empresa y notario. La EP4 pide completar esa base con una solución móvil funcional e integrada, microservicios propios, consumo de una API externa, pruebas unitarias, APK firmado y evidencia de trabajo colaborativo.
+
+La pauta organiza la evaluación en estos indicadores: **IE 3.1.1**, pantallas y flujos; **IE 3.1.2**, microservicios y base de datos; **IE 3.1.3**, integración CRUD entre la app y los microservicios; **IE 3.1.4**, consumo de API externa; **IE 3.2.1**, pruebas unitarias con cobertura mínima del 80 % de la lógica; **IE 3.3.1**, APK firmado y configuración; e **IE 3.3.2**, GitHub, Trello y colaboración demostrable. La pauta advierte que si la app no se ejecuta en la defensa no se pueden evaluar los indicadores posteriores.
+
+### Arquitectura y alcance objetivo EP4
+
+- **App Android:** Kotlin, Jetpack Compose y arquitectura UI → ViewModel → Repository. Room se conserva como almacenamiento local/caché; la integración remota debe permitir enviar, recibir y actualizar información desde la interfaz.
+- **Microservicios propios:** dos servicios Spring Boot, uno de usuarios y otro de trámites, con base de datos activa y endpoints funcionales. El plan propone los puertos 8081 y 8082 y H2 persistente en archivo como alternativa simple para la demostración.
+- **API externa:** consumirla mediante Retrofit, mostrar el resultado dentro de la app y aislar fallos de red para que no bloqueen los trámites. La guía técnica recomienda Mindicador.cl para presentar UF/UTM como referencia económica; debe considerarse una decisión recomendada hasta que se confirme en la implementación.
+- **Integridad del flujo:** firma representada de forma simulada; corrección y reenvío de trámites devueltos; confirmación de legibilidad antes de aprobar; acciones del notario respetando el estado; cierre de sesión para Persona/Empresa.
+- **Entrega técnica:** pruebas de ViewModels/repositorios y validaciones; APK de release firmado con `.jks` y configuración reproducible; README con los seis apartados exigidos; repositorio GitHub, planificación Trello, commits técnicos de ambos integrantes y entrega grupal e individual por AVA.
+
+Estos puntos describen el **objetivo de la EP4**, no certifican por sí solos que estén implementados. La pauta permite datos ficticios y servicios de prueba; Notix sigue siendo un MVP académico y no debe conectarse a sistemas productivos ni gestionar trámites reales.
+
+### Estado de referencia al preparar la EP4
+
+Según la documentación técnica del repositorio y la auditoría consignada en la guía EP4, la base existente es la app Android local con Room: acceso, catálogo, creación y seguimiento de trámites, bandeja notarial, aprobación/devolución, historial y avisos internos. La auditoría identifica como brechas EP4 los microservicios Spring Boot, Retrofit, API externa, flujos de firma y reenvío, legibilidad obligatoria, logout de persona/empresa, cobertura de pruebas, APK firmado y evidencias de planificación/colaboración. La documentación técnica también registra que los adjuntos persisten solo como metadatos y que los avisos no son notificaciones del sistema.
+
+Este estado es una **línea base documental**, no una verificación automática del estado de cada archivo. Para el avance actualizado consultar [`Documentacion_Notix.md`](Documentacion_Notix.md) y la carpeta [`implementacion/`](implementacion/estado_actual.md), que reúne el estado actual, la guía técnica, el plan y la pauta EP4.
+
+## 11. Material de apoyo del caso (referencia original)
 
 | Material | Para qué se usa | Estado |
 |---|---|---|
-| Descripción conceptual del flujo de trámites notariales digitales | Comprender contexto, perfiles y etapas generales | ☐ Depurado |
-| Catálogo ficticio de tipos de trámite, estados y tipos de firma | Modelar formularios, reglas y flujos del MVP | ☐ Depurado |
-| Documentos y registros sintéticos de ejemplo | Pruebas, demostraciones y validación funcional | ☐ Depurado |
+| Descripción conceptual del flujo de trámites notariales digitales | Comprender contexto, perfiles y etapas generales | Definida en este documento y material del caso |
+| Catálogo ficticio de tipos de trámite, estados y tipos de firma | Modelar formularios, reglas y flujos del MVP | Representado en los modelos y datos demo de Notix |
+| Documentos y registros sintéticos de ejemplo | Pruebas, demostraciones y validación funcional | Datos demo locales documentados en `Documentacion_Notix.md` |
 
-## 11. Pendientes antes de construir
+## 12. Pendientes y decisiones de continuidad
 
-- [ ] Obtener el material de apoyo de la sección 10
-- [ ] Definir el **flujo principal** que se va a demostrar (¿qué tipo de firma: simple, avanzada o notariada?)
-- [ ] Elegir un subconjunto pequeño de los +60 formatos predefinidos para el catálogo ficticio
-- [ ] Definir qué perfiles entran al MVP
-- [ ] Definir catálogo de tipos de trámite, estados y tipos de firma
-- [ ] Diagramar flujos (estados y transiciones del trámite)
-- [ ] Decidir qué integraciones se simulan y cómo
-- [ ] Confirmar tecnologías permitidas en DSY1105
-- [ ] Redactar casos de prueba
+- [ ] Completar y validar las brechas funcionales descritas en la guía EP4.
+- [ ] Construir y ejecutar los microservicios Spring Boot con base de datos y endpoints CRUD.
+- [ ] Integrar la app con los servicios propios mediante Retrofit, conservando Room según la estrategia elegida.
+- [ ] Elegir e integrar una API externa mediante Retrofit con presentación en UI y manejo de fallos.
+- [ ] Implementar y medir cobertura unitaria de al menos 80 % de la lógica requerida.
+- [ ] Generar y comprobar APK firmado, `.jks` y configuración de release.
+- [ ] Completar README de seis apartados, evidencia de Trello/commits colaborativos y entregas AVA.
+- [ ] Mantener la app demostrable y probar la ejecución integral antes de la defensa.
 
-## 12. Notas / decisiones
+## 13. Notas / decisiones
 
-_(Espacio para ir anotando decisiones del equipo.)_
+- El flujo académico se mantiene con datos ficticios/sintéticos y firmas, proveedores e integraciones simulados cuando corresponda.
+- La guía histórica [`implementacion/Guia_implementacion_Notix.md`](implementacion/Guia_implementacion_Notix.md) describe etapas anteriores del MVP; no debe tomarse como registro del estado actual.
+- La guía concreta de EP4 y el plan de desarrollo contienen propuestas técnicas y checklists; distinguir siempre sus recomendaciones del trabajo efectivamente realizado.

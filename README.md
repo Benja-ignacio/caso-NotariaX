@@ -7,9 +7,8 @@ Aplicación Android académica para el caso **NotariaX** (DSY1105, Duoc UC). Per
 ## Documentación
 
 - **[Documentación técnica y estado del proyecto](docs/Documentacion_Notix.md)** → arquitectura, persistencia Room, funcionalidades listas, pendientes y checklist de pruebas.
-- **[Guía de implementación EP4](docs/implementacion_ep4_notix.md)** → cambios concretos para backend Spring Boot, Retrofit, API externa, pruebas y APK firmado.
+- **[Carpeta de implementación EP4](docs/implementacion/estado_actual.md)** → estado actual para continuar el trabajo, plan, guía técnica y pauta del encargo.
 - [Contexto del caso](docs/contexto.md) → alcance y requisitos originales.
-- [Guía de implementación](docs/Guia_implementacion_Notix.md) → plan por etapas (documento histórico).
 
 ## Estado rápido
 

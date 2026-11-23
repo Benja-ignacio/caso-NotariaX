@@ -54,7 +54,7 @@ caso-NotariaX/
 ├── README.md                      # Entrada rápida: cómo ejecutar y estado
 ├── docs/
 │   ├── contexto.md                # Enunciado y alcance del caso
-│   ├── Guia_implementacion_Notix.md  # Plan de trabajo por etapas (histórico)
+│   ├── implementacion/                # Planes, pauta y estado de continuidad EP4
 │   └── Documentacion_Notix.md     # Este documento (estado real)
 │
 ├── index.html                     # Prototipo web legado (no es la app)
@@ -541,7 +541,7 @@ Ordenados por impacto para la rúbrica y el flujo principal.
     - Usar secuencia o UUID.
 
 15. **Documentación y código**
-    - `docs/Guia_implementacion_Notix.md` describe un estado anterior (repository vacío).
+    - `docs/implementacion/Guia_implementacion_Notix.md` describe un estado anterior (repository vacío).
     - Actualizar esa guía o marcarla como histórica.
     - `README.md` debe mantenerse como entrada principal.
     - Revisar nombres de archivo: `AuthViewmodel.kt` vs `AuthViewModel`, `TramitesViewmodel.kt`.
