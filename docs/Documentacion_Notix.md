@@ -21,6 +21,8 @@ El flujo implementado cubre:
 8. Consulta del estado, historial y observaciones por parte del solicitante.
 9. Corrección y reenvío cuando el trámite fue devuelto.
 10. Cierre de sesión para Persona, Empresa y Notario.
+11. Sincronización de usuarios, trámites y avisos contra los microservicios con Retrofit.
+12. Feriados externos de Nager.Date con fallback si la API no responde.
 
 La app **no debe usarse para trámites notariales reales**. No integra servicios productivos, firmas reales, biometría real ni bases de datos de NotariaX.
 
@@ -32,9 +34,9 @@ La app **no debe usarse para trámites notariales reales**. No integra servicios
 |---|---|
 | Proyecto Android + Jetpack Compose | ✅ Funcional |
 | Persistencia local con Room | ✅ Implementada |
-| Microservicios Spring Boot (`backend/`) | ✅ Implementados y probados por separado |
-| Integración app Android ↔ backend | ❌ Pendiente (Retrofit, Fase 3) |
-| API externa en la app | ❌ Pendiente (Fase 3) |
+| Microservicios Spring Boot (`backend/`) | ✅ Implementados y probados |
+| Integración app Android ↔ backend | ✅ Retrofit para login, registro, trámites y avisos |
+| API externa en la app | ✅ Nager.Date integrada; fallback si no responde |
 | Autenticación local (login/registro) | ✅ Implementada |
 | Flujo Persona/Empresa | ✅ Implementado en su mayoría |
 | Flujo Notario | ✅ Implementado en su mayoría |
@@ -43,9 +45,10 @@ La app **no debe usarse para trámites notariales reales**. No integra servicios
 | Notificaciones del sistema | ❌ Pendiente |
 | Firma simulada (trazo/mock) | ✅ Implementada y obligatoria antes de enviar |
 | Corrección y reenvío tras devolución | ✅ Implementada |
+| Eliminar trámites no finalizados | ✅ Implementado con confirmación y backend |
 | Confirmación de legibilidad por el notario | ✅ Obligatoria para aprobar |
-| Pruebas unitarias/UI | ⚠️ Solo pruebas de ejemplo |
-| Navegación completa (perfil, atrás, logout persona) | ⚠️ Logout Persona/Empresa/Notario implementado; falta botón atrás y perfil |
+| Pruebas unitarias/UI | ✅ 82 pruebas JVM + 7 pruebas DAO; cobertura de línea 96,26 %; faltan pruebas de UI |
+| Navegación completa (perfil, atrás, logout) | ⚠️ Perfil y logout implementados; falta manejo del botón atrás |
 | Documentación | ✅ Este documento + README actualizado |
 
 > El proyecto **compila** con el SDK configurado. Ver sección 12 para la verificación y requisitos de entorno.
@@ -80,6 +83,7 @@ caso-NotariaX/
     │       │   ├── model/                 # Modelos de dominio
     │       │   ├── data/
     │       │   │   ├── local/             # Room: entidades, DAO, DB, mappers, seeder
+    │       │   │   ├── remote/            # Retrofit, DTOs, APIs y mapeos
     │       │   │   └── validation/        # Validación de RUN
     │       │   ├── repository/            # AuthRepository + TramiteRepository
     │       │   ├── viewmodel/             # Un ViewModel por flujo
@@ -115,7 +119,8 @@ caso-NotariaX/
 | Backend | Java 21, Spring Boot 4.2, Spring Web MVC, Spring Data JPA, Maven Wrapper |
 | Persistencia backend | H2 2.5 en archivo (`data/`) con Hibernate 7 |
 | Puertos backend | `ms-usuarios` 8081, `ms-tramites` 8082 |
-| Integración app ↔ backend | No implementada todavía |
+| Integración app ↔ backend | Retrofit 2.11 + OkHttp 4.12 + Gson, contra `10.0.2.2:8081/8082` en emulador |
+| API externa | Nager.Date (`https://date.nager.at/api/v3/NextPublicHolidays/CL`) para el próximo feriado |
 
 Dependencias relevantes declaradas en `Notix/gradle/libs.versions.toml`:
 
@@ -123,6 +128,10 @@ Dependencias relevantes declaradas en `Notix/gradle/libs.versions.toml`:
 - `androidx.lifecycle:lifecycle-viewmodel-compose`
 - `androidx.compose.material3` y `material-icons-extended`
 - `androidx.activity:activity-compose`
+- `com.squareup.retrofit2:retrofit` y `converter-gson`
+- `com.squareup.okhttp3:logging-interceptor`
+- `io.mockk:mockk` y `org.jetbrains.kotlinx:kotlinx-coroutines-test` para pruebas
+- JaCoCo para cobertura de línea
 
 ---
 
@@ -158,23 +167,27 @@ Decisiones actuales:
 - Algunas validaciones de formulario están en el ViewModel y otras en la pantalla de registro (deuda técnica menor).
 - La sesión se maneja con estado en memoria/`rememberSaveable` en `MainActivity`; **no hay sesión persistida**.
 
-### 5.1 Backend EP4 (Fase 2)
+### 5.1 Backend EP4 y sincronización
 
-`backend/` es un proyecto Maven independiente con dos microservicios Spring Boot:
+`backend/` es un proyecto Maven independiente con dos microservicios Spring Boot. La app se conecta con Retrofit:
 
 ```text
-App Android (Room, sin Retrofit todavía)     backend/
-                                           ├── ms-usuarios :8081  → H2 usuarios
-                                           └── ms-tramites :8082  → H2 trámites,
-                                                                    documentos,
-                                                                    historial, avisos
+App Android
+├── Compose → ViewModels → Repositories
+│                              ├── Room (caché local y lectura offline)
+│                              ├── Retrofit ms-usuarios :8081
+│                              ├── Retrofit ms-tramites :8082
+│                              └── Retrofit Nager.Date (API externa)
+└── data/remote/ (clientes, DTOs y mapeos)
 ```
 
 - `ms-usuarios` expone registro, login, consulta, actualización y eliminación de usuarios. Normaliza el correo, valida RUN/documento y exige campos según Persona/Empresa/Notario.
 - `ms-tramites` expone listado general y por solicitante, detalle, creación, aprobación/devolución, reenvío, eliminación y avisos.
 - La máquina de estados es la misma de la app: `ENVIADO → FINALIZADO` exige legibilidad; `ENVIADO → DEVUELTO` exige observación; `DEVUELTO → ENVIADO` usa reenvío; `FINALIZADO` rechaza cambios y eliminación con `409`.
 - Los seeders crean los mismos usuarios demo y cuatro trámites ficticios.
-- **No hay integración con la app:** no existen Retrofit, DTO remotos, permiso `INTERNET` ni sincronización Room ↔ backend. La app sigue funcionando 100 % con Room.
+- La app escribe primero en el backend y luego actualiza Room con la respuesta. Al abrir Mis Trámites, Bandeja o Avisos, refresca la caché desde la API.
+- Si el backend no responde, la UI conserva la última copia de Room; las escrituras muestran un error. El login admite fallback local si ya existe el usuario en Room.
+- La tarjeta de feriados de `CatalogoFormatosScreen` consulta el próximo feriado en Nager.Date; cualquier fallo devuelve `null` y muestra un texto de respaldo.
 - Contratos, ejemplos `curl` y ejecución: [`backend/README.md`](../backend/README.md).
 
 ---
@@ -342,6 +355,8 @@ Esto evita crashes ante valores desconocidos, pero puede ocultar datos corruptos
 
 | Dato | ¿Persiste al cerrar la app? | Dónde |
 |---|---|---|
+| Copia remota de usuarios, trámites, documentos, historial y avisos | ✅ Sí | H2 de `ms-usuarios` / `ms-tramites` |
+| Recuperación tras borrar la caché local | ✅ Sí, al volver a sincronizar | Backend |
 | Usuarios registrados | ✅ Sí | Room (`usuarios`) |
 | Trámites creados | ✅ Sí | Room (`tramites`) |
 | Documentos (nombre, tamaño, estado) | ✅ Sí | Room (`documentos`) |
@@ -408,6 +423,7 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
   - Banner de alerta para trámite devuelto.
   - Detalle con antecedentes, documentos, firma simulada, observación del notario e historial.
   - Si el trámite está `DEVUELTO`, permite **Corregir y reenviar**: edita antecedentes, exige reemplazar documentos observados, limpia la observación, vuelve a `ENVIADO` y registra historial + aviso.
+  - Si el trámite no está `FINALIZADO`, permite **Eliminar trámite** con confirmación. Llama a `DELETE /api/tramites/{id}` y borra de Room el trámite, documentos, historial y avisos.
   - Cierre de sesión con confirmación.
 - `AvisosScreen`: lista de avisos, marca como leído al tocar y permite cerrar sesión.
 
@@ -428,6 +444,8 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
 
 - Tema propio (`NotixColors`, `Theme`, `Type`).
 - Componentes: `TramiteCard`, `EstadoChip`, `BarraInferiorPersona`, `NotixTextField`, transformaciones visuales de RUT/documento.
+- `PerfilScreen`: datos de la cuenta, empresa/notaría y cierre de sesión.
+- `BarraInferiorPersona`: tres tabs reales (`Trámites`, `Avisos`, `Perfil`). Se eliminó el “Inicio” vacío.
 - Animaciones: contadores, chips, visibilidad de errores, transiciones básicas.
 - Formato de fechas y documentos.
 - Icono/logo de la app.
@@ -445,7 +463,35 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
   - Historial y avisos generados por el backend, no por el cliente.
 - Ambas bases H2 se crean como archivo y se reinician borrando `backend/ms-*/data/`.
 - Verificación: 11 pruebas (`./mvnw test`) y llamadas HTTP reales a los endpoints principales.
-- La app Android aún no consume estos servicios.
+
+### 7.6 Integración Retrofit y API externa
+
+- `data/remote/ApiConfig.kt` define las URLs:
+  - Emulador: `http://10.0.2.2:8081/` y `http://10.0.2.2:8082/`.
+  - Dispositivo físico: `http://127.0.0.1:8081/` y `http://127.0.0.1:8082/`, junto con `adb reverse tcp:8081 tcp:8081` y `adb reverse tcp:8082 tcp:8082`.
+  - `https://date.nager.at/` para feriados.
+- Clientes Retrofit separados con OkHttp, Gson y logging básico.
+- `AuthRepository` usa `ms-usuarios` para login/registro y guarda el usuario en Room. Si no hay red, el login puede validar contra la copia local.
+- `TramiteRepository` envía creación, aprobación, devolución, reenvío y lectura de avisos al backend; después guarda la respuesta en Room.
+- Al entrar a Mis Trámites, Bandeja del Notario o Avisos se ejecuta una sincronización `GET` y se reemplazan documentos/historial locales del trámite.
+- `FeriadosRepository` consulta Nager.Date y **nunca lanza error**: `runCatching` devuelve `null` y la tarjeta del catálogo muestra “Feriados no disponibles”.
+- Los errores HTTP se leen desde `message` del backend; los errores de red se muestran como falta de conexión.
+- El manifiesto declara `INTERNET` y `usesCleartextTraffic="true"` para el backend HTTP local. Es una decisión académica; en producción se usaría HTTPS.
+
+### 7.7 Pruebas unitarias y cobertura
+
+- **82 pruebas JVM** con JUnit, MockK y `kotlinx-coroutines-test`.
+- **7 pruebas DAO instrumentadas** con Room en memoria (`NotixDaoTest`).
+- Cubren:
+  - `RutValidator`, fechas y formateadores.
+  - `AuthRepository` y `TramiteRepository` con APIs/DAOs simulados.
+  - Mapeos DTO ↔ dominio y errores HTTP/red.
+  - ViewModels de login, registro, trámites, bandeja, creación, avisos, perfil y feriados.
+- **Cobertura de línea: 96,26 %**. Cobertura de ramas: 75,61 %.
+- JaCoCo genera HTML/XML y `jacocoTestCoverageVerification` falla si la línea baja de 80 %.
+- Reporte: `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
+- Pendiente: pruebas de UI/instrumentadas.
+- Comando DAO: `./gradlew :app:connectedDebugAndroidTest`.
 
 ---
 
@@ -513,7 +559,11 @@ cd backend
 ./mvnw spring-boot:run -pl ms-tramites    # puerto 8082
 ```
 
-No requiere Maven instalado: el wrapper descarga Maven 3.10.1. Las bases H2 quedan en `backend/ms-usuarios/data/` y `backend/ms-tramites/data/`; para reiniciar la demo se detienen los servicios y se borran esas carpetas. La app Android **no necesita** el backend para funcionar en esta fase.
+No requiere Maven instalado: el wrapper descarga Maven 3.10.1. Las bases H2 quedan en `backend/ms-usuarios/data/` y `backend/ms-tramites/data/`; para reiniciar la demo se detienen los servicios y se borran esas carpetas.
+
+Para el flujo completo, los servicios deben estar levantados antes de usar la app. En el emulador Android las URLs `10.0.2.2:8081` y `10.0.2.2:8082` apuntan al PC. En un dispositivo físico por USB hay que ejecutar `adb reverse tcp:8081 tcp:8081` y `adb reverse tcp:8082 tcp:8082`; `ApiConfig.kt` usa `127.0.0.1` automáticamente.
+
+Guía detallada con comandos, conexión de dispositivos y flujo de prueba completo: [`Guia_ejecucion_y_pruebas.md`](Guia_ejecucion_y_pruebas.md).
 
 ### Credenciales demo
 
@@ -530,86 +580,73 @@ También se puede crear una cuenta nueva desde “Crear cuenta”.
 
 Ordenados por impacto para la rúbrica y el flujo principal.
 
-### Integración pendiente (Fase 3)
-
-1. **Conectar la app con el backend**
-   - Agregar Retrofit, converter y logging interceptor.
-   - Crear clientes separados para 8081 y 8082; en emulador usar `10.0.2.2`.
-   - Agregar permiso `INTERNET` y tráfico cleartext local.
-   - Definir fuente de verdad y sincronización Room ↔ API antes de reemplazar escrituras locales.
-
-2. **API externa aislada**
-   - Elegir una opción (por ejemplo Mindicador) y envolver la llamada con fallback.
-   - Mostrarla en una tarjeta sin bloquear la creación ni el envío de trámites.
-
-3. **Completar DELETE desde la app**
-   - El backend ya expone `DELETE /api/tramites/{id}`; falta la acción y confirmación en la UI.
-
 ### Alta prioridad
 
-1. **Persistencia real del documento adjunto**
+1. **Pruebas de UI/instrumentadas**
+   - Agregar pruebas de login, creación, aprobación y eliminación con Compose UI Test.
+
+2. **Persistencia real del documento adjunto**
    - Hoy solo se guarda el nombre.
    - Copiar el archivo a almacenamiento interno o guardar URI con permiso persistente.
    - Validar tipo/tamaño y evitar rutas nulas.
 
 ### Media prioridad
 
-2. **Notificaciones del sistema**
+3. **Notificaciones del sistema**
    - Los avisos en Room no generan notificación Android.
    - Implementar permiso `POST_NOTIFICATIONS` (API 33+) y `NotificationManager`.
    - Notificar al devolver o finalizar un trámite.
 
-3. **Navegación y sesión**
-   - `BarraInferiorPersona` tiene varias acciones vacías (`onInicio`, `onPerfil`).
-   - Falta pantalla de perfil y manejo del botón atrás del sistema.
-   - El logout ya está conectado para Persona, Empresa y Notario.
-   - Persistir la sesión (DataStore) si se desea mantener al usuario autenticado.
+4. **Navegación y sesión**
+   - La barra inferior ya navega entre Trámites, Avisos y Perfil; se eliminó el “Inicio” sin pantalla.
+   - Falta manejar el botón atrás del sistema y persistir la sesión (DataStore).
+   - El logout está conectado para Persona, Empresa y Notario, y también desde Perfil.
 
-4. **Avisos navegables**
+5. **Avisos navegables**
    - `Aviso.tramiteId` no se usa para abrir el trámite.
    - Al tocar un aviso conviene marcar leído y navegar al detalle.
 
-5. **Asignación de trámites al notario**
+6. **Asignación de trámites al notario**
    - El notario ve todos los trámites de la base.
    - En un escenario real debería ver solo los de su notaría o los asignados.
 
-6. **Validaciones centralizadas**
+7. **Validaciones centralizadas**
    - Hoy hay reglas en pantallas, ViewModels y repositorio.
    - Extraer un `TramiteValidator` (como propone la guía) para evitar duplicación.
 
 ### Baja prioridad / calidad
 
-7. **Migraciones Room**
+8. **Migraciones Room**
    - Ya existe `MIGRATION_2_3` explícita para conservar datos.
    - Activar `exportSchema = true` y versionar el esquema.
    - Evaluar retirar `fallbackToDestructiveMigration()` cuando Room deje de ser prescindible.
 
-8. **Seguridad**
+9. **Seguridad**
    - Contraseñas en texto plano; para el MVP es aceptable, pero documentar que no es producción.
    - No hay cifrado de base de datos ni control de acceso a nivel de datos.
    - Revisar `allowBackup`.
 
-9. **Fechas**
+10. **Fechas**
    - Se usa la fecha real del dispositivo, no una fecha simulada controlada.
    - El orden de trámites se hace por `id` descendente, no por fecha de creación.
    - Considerar `fechaCreacion` y ordenar por ella.
 
-10. **IDs**
-    - Los trámites nuevos usan `TX-2026-${1000..9999}.random()`, lo que puede colisionar.
-    - Usar secuencia o UUID.
+11. **IDs**
+    - El backend ya genera IDs secuenciales `TX-2026-XXXX`; la app dejó de generarlos localmente.
+    - Mantener esa responsabilidad en el backend.
 
-11. **Documentación y código**
+12. **Documentación y código**
     - `docs/implementacion/Guia_implementacion_Notix.md` describe un estado anterior (repository vacío).
     - Actualizar esa guía o marcarla como histórica.
     - `README.md` debe mantenerse como entrada principal.
     - Revisar nombres de archivo: `AuthViewmodel.kt` vs `AuthViewModel`, `TramitesViewmodel.kt`.
 
-12. **Pruebas**
-    - Agregar pruebas unitarias para `RutValidator`, validaciones de formularios y transiciones de estado.
-    - Agregar pruebas de DAO/instrumentadas para persistencia.
-    - Agregar pruebas de UI para login, creación y revisión.
+13. **Pruebas**
+    - ✅ Pruebas unitarias de `RutValidator`, repositorios, mappers, fechas y ViewModels (77 en total).
+    - ✅ Cobertura de línea 96,26 % con JaCoCo y umbral mínimo de 80 %.
+    - Pendiente: pruebas de DAO/instrumentadas y pruebas de UI para login, creación y revisión.
 
-13. **Limpieza**
+14. **Limpieza**
     - Eliminar `.idea/`, `build/` y archivos generados del control de versiones si no son necesarios.
     - Revisar `.gitignore` en raíz y en `Notix/`.
 
@@ -630,6 +667,11 @@ Ordenados por impacto para la rúbrica y el flujo principal.
 - [ ] Corregir un trámite devuelto con documento observado y reenviarlo; verificar estado `ENVIADO` e historial.
 - [ ] Verificar que el documento observado exige reemplazo antes de reenviar.
 - [ ] Cerrar sesión como Persona, Empresa y Notario; verificar el regreso a Welcome.
+- [ ] Con ambos microservicios activos, iniciar sesión y comprobar que el usuario queda en Room.
+- [ ] Crear un trámite y verificar que el ID lo asigna el backend (`TX-2026-XXXX`).
+- [ ] Aprobar o devolver desde la app y comprobar el nuevo estado en la base H2 y en la app.
+- [ ] Verificar la tarjeta del próximo feriado en el catálogo; con Nager.Date caído debe mostrar el respaldo.
+- [ ] Detener el backend y confirmar que la app conserva la última lista local y muestra error al escribir.
 - [ ] Ver el trámite creado en “Mis trámites”.
 - [ ] Ver el trámite en la bandeja del notario.
 - [ ] Aprobar un trámite y verificar estado, historial y aviso.
@@ -652,7 +694,31 @@ cd Notix
 JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Resultado: **BUILD SUCCESSFUL** con el entorno local (AGP 9.2.1, Kotlin 2.2.10, Room 2.8.5). Las pruebas ejecutadas son solo las de ejemplo (`ExampleUnitTest`); no se midió cobertura.
+Resultado: **BUILD SUCCESSFUL** con el entorno local (AGP 9.2.1, Kotlin 2.2.10, Room 2.8.5).
+
+Pruebas y cobertura:
+
+```bash
+cd Notix
+JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk ./gradlew \
+  :app:testDebugUnitTest :app:jacocoTestReport :app:jacocoTestCoverageVerification
+```
+
+- **82 pruebas JVM**, sin fallos.
+- **96,26 % de cobertura de línea**.
+- **75,61 % de cobertura de ramas**.
+- **7 pruebas DAO instrumentadas**, sin fallos.
+- Reporte HTML: `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
+- `jacocoTestCoverageVerification` exige al menos 80 % de línea.
+
+Pruebas DAO:
+
+```bash
+cd Notix
+JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk ./gradlew :app:connectedDebugAndroidTest
+```
+
+Verifican Room en memoria: inserciones, transacciones de estado/reenvío, reemplazo sin duplicados, borrado en cascada, avisos y correo duplicado.
 
 Observaciones del entorno:
 
@@ -681,21 +747,42 @@ También se levantaron ambos JAR y se verificó con `curl`:
 - Aprobar sin legibilidad devuelve `409`; con legibilidad devuelve `200` y `FINALIZADO`.
 - `GET /api/avisos/USR-001` devuelve los avisos generados.
 
-No se probó integración con la app porque aún no existe.
+La integración desde la app se verificó con una prueba JVM temporal de contrato contra estos servicios: login, listado de trámites, documentos observados, historial y avisos. La prueba se retiró después para no depender de servicios activos.
+
+### App Android con Retrofit
+
+Comando ejecutado:
+
+```bash
+cd Notix
+JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleDebug
+```
+
+Resultado: **BUILD SUCCESSFUL**. Compila con Retrofit 2.11, OkHttp 4.12, Gson y el permiso `INTERNET`. La suite actual tiene 82 pruebas JVM y 96,26 % de cobertura de línea.
+
+El emulador local no arrancó (terminó con `SIGSEGV`), pero la integración se verificó en un **dispositivo físico** conectado por USB con `adb reverse` y ambos microservicios activos:
+
+- Login de Persona contra `ms-usuarios`.
+- Mis Trámites mostró los datos sincronizados desde `ms-tramites`.
+- Creación de `TX-2026-0043` desde la app; la API confirmó el nuevo trámite con su historial inicial.
+- Login como notario y aprobación de `TX-2026-0043` con legibilidad marcada; el backend quedó en `FINALIZADO` con historial de `NOTARIO`.
+- Eliminación de `TX-2026-0042` desde la UI: desapareció del backend y de la lista local; también se borraron sus avisos.
+- La tarjeta de feriados mostró “Inmaculada Concepción · 08/12/2026” desde Nager.Date.
+- Sin backend activo, el login local y la caché de Room siguieron funcionando; las escrituras quedaron pendientes de conexión.
+
+También se ejecutó una prueba JVM temporal contra los servicios reales: login, listado de trámites, documentos observados, historial y avisos. Pasó correctamente y luego se retiró para no dejar una prueba dependiente del backend activo.
 
 ---
 
 ## 13. Recomendación de siguiente etapa
 
-Estado tras las Fases 1 y 2 de la EP4 (23-11-2026): los flujos de la app y los microservicios Spring Boot ya están implementados y verificados por separado. Para cerrar la EP4 queda:
+Estado tras las Fases 1, 2, 3 y 4 de la EP4 (23-11-2026): flujos de la app, microservicios, integración Retrofit, API externa, DELETE desde la UI y pruebas JVM/DAO ya están implementados. Para cerrar la EP4 queda:
 
-1. Integrar la app con el backend mediante **Retrofit** (Fase 3).
-2. Agregar una **API externa** visible en la UI con fallback.
-3. Guardar el **documento adjunto** de forma persistente (hoy solo metadatos).
-4. Agregar **notificaciones del sistema**.
-5. Completar **navegación, perfil y botón atrás** (el logout ya está conectado).
-6. Agregar **pruebas unitarias de la app** con cobertura medida; las pruebas actuales del backend no cuentan para la cobertura de la app.
-7. Generar el **APK firmado** y completar README/Trello/evidencias de entrega.
+1. Guardar el **documento adjunto** de forma persistente (hoy solo metadatos).
+2. Agregar **notificaciones del sistema**.
+3. Completar el **botón atrás** y la sesión persistente (el perfil y el logout ya están conectados).
+4. Agregar **pruebas de UI/instrumentadas**; las 82 JVM y 7 DAO no cubren la interfaz.
+5. Verificar el **APK firmado** y completar README/Trello/evidencias de entrega.
 
 ---
 
@@ -705,10 +792,14 @@ Estado tras las Fases 1 y 2 de la EP4 (23-11-2026): los flujos de la app y los m
 - La autenticación es local y con contraseña en texto plano por tratarse de un MVP académico.
 - Los documentos se representan por metadatos; no se almacena contenido real.
 - La biometría, e-token y firma avanzada son simulaciones.
-- La base de datos es la fuente de verdad de la app; los `Flow` mantienen la UI sincronizada.
-- El backend es independiente y todavía no es fuente de verdad de la app: no hay integración Retrofit.
+- El backend es la fuente de verdad para escrituras; Room actúa como caché local y permite mostrar la última información si no hay red.
+- Las lecturas de trámites y avisos refrescan Room desde el backend al entrar a las pantallas; la UI observa `Flow` de Room.
+- Las escrituras (crear, aprobar, devolver, reenviar) llaman primero al backend y luego actualizan Room con la respuesta.
+- El login admite fallback local solo cuando falla la red y el usuario ya existe en la caché.
+- La API externa (Nager.Date) es opcional: `runCatching` evita que un fallo bloquee el catálogo o la creación.
 - El backend usa H2 en archivo para evitar depender de un motor externo en la demo.
 - Las contraseñas del backend también quedan en texto plano por el alcance académico; no es una implementación de producción.
+- Se habilita tráfico HTTP local (`usesCleartextTraffic`) solo para la demo con `10.0.2.2`; en producción debe usarse HTTPS.
 - El prototipo HTML se conserva como referencia, no como parte funcional de la entrega Android.
 
 ---

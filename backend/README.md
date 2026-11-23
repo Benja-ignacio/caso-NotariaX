@@ -7,7 +7,7 @@ Microservicios Spring Boot del caso Notix. **No procesan trámites reales**: usa
 | `ms-usuarios` | `8081` | `ms-usuarios/data/msusuarios` | Registro, login y CRUD de usuarios |
 | `ms-tramites` | `8082` | `ms-tramites/data/mstramites` | Trámites, documentos, historial y avisos |
 
-> La app Android **todavía no consume estos servicios**. Sigue usando Room como fuente de verdad hasta implementar Retrofit en la Fase 3.
+> La app Android consume estos servicios con **Retrofit** y usa **Room como caché local**. En emulador usa `10.0.2.2`; en dispositivo físico usa `127.0.0.1` con `adb reverse tcp:8081 tcp:8081` y `adb reverse tcp:8082 tcp:8082`.
 
 ## Requisitos
 
@@ -112,10 +112,18 @@ backend/
     └── src/main/java/com/duoc/notix/tramites/
 ```
 
+## Integración con la app
+
+- La app usa Retrofit contra estos endpoints y guarda las respuestas en Room.
+- Al abrir Mis Trámites, Bandeja del Notario o Avisos, sincroniza desde el backend.
+- Las escrituras (crear, aprobar, devolver, reenviar) van primero al backend.
+- Si el backend no está disponible, la app conserva la última copia local y muestra un error al intentar escribir.
+- La API externa (feriados de Nager.Date) es independiente de estos servicios.
+
 ## Limitaciones académicas
 
 - Contraseñas en texto plano, sin JWT ni sesión distribuida.
 - Sin comunicación entre microservicios: `ms-tramites` referencia a `USR-001` de forma lógica, sin FK remota.
 - Sin CORS ni autenticación de endpoints; el foco es la demo local.
 - H2 en archivo, no PostgreSQL/MySQL.
-- La app aún no está conectada; eso corresponde a la Fase 3.
+- La sincronización app ↔ backend es simple: no resuelve conflictos ni elimina de Room los trámites que ya no existen en el servidor.

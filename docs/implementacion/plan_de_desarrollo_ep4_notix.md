@@ -8,7 +8,7 @@
 
 ## 1. Mapa de Evolución de Arquitectura
 
-La **app Notix** funciona 100 % offline con Room. Los microservicios ya existen en `backend/` (Fase 2), pero la app todavía no los consume. Para obtener el 100 % de logro en la rúbrica de la Evaluación Parcial 4, la arquitectura debe evolucionar al siguiente esquema:
+La **app Notix** puede seguir mostrando la última copia local con Room, pero desde la Fase 3 consume los microservicios de `backend/` con Retrofit. La arquitectura evolucionó al siguiente esquema (la sesión persistente y el APK firmado siguen pendientes):
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -60,7 +60,7 @@ Antes de conectar servidores, cierra las brechas detectadas en el estado actual 
 
 ### Fase 2: Construir los Microservicios en Spring Boot (`IE 3.1.2` — 15 %)
 
-> ✅ **Implementada el 23-11-2026:** `backend/ms-usuarios` (8081) y `backend/ms-tramites` (8082) con Spring Boot 4.2, Java 21, Maven, JPA, H2 persistente, seeders, endpoints y 11 pruebas. Verificado con `./mvnw test` y llamadas HTTP locales. La app Android todavía no consume el backend; eso corresponde a la Fase 3. Guía: `backend/README.md`.
+> ✅ **Implementada el 23-11-2026:** `backend/ms-usuarios` (8081) y `backend/ms-tramites` (8082) con Spring Boot 4.2, Java 21, Maven, JPA, H2 persistente, seeders, endpoints y 11 pruebas. Verificado con `./mvnw test` y llamadas HTTP locales. La Fase 3 conectó la app con Retrofit. Guía: `backend/README.md`.
 
 Migra las 5 entidades actuales de `NotixDatabase` hacia Spring Boot con una base de datos activa (PostgreSQL, MySQL o H2 persistente en archivo). Dividir el backend en **2 microservicios** cubre el requerimiento en plural de la pauta:
 
@@ -74,6 +74,8 @@ Migra las 5 entidades actuales de `NotixDatabase` hacia Spring Boot con una base
 ---
 
 ### Fase 3: Integrar Retrofit — Backend + API Externa (`IE 3.1.3` e `IE 3.1.4` — 30 %)
+
+> ✅ **Implementada el 23-11-2026:** Retrofit 2.11 + OkHttp + Gson, clientes separados para 8081/8082, sincronización Room ↔ backend, manejo de errores HTTP/red y tarjeta del próximo feriado de Nager.Date con fallback. También se implementó **DELETE desde la UI** con confirmación y borrado local en cascada. Verificado en dispositivo físico con `adb reverse`: login, creación, sincronización, aprobación notarial y eliminación de `TX-2026-0042`; la tarjeta mostró “Inmaculada Concepción · 08/12/2026” y el modo sin backend conservó la caché. El emulador local falló con `SIGSEGV`; se cambió desde Mindicador porque su servidor no respondía. Detalle en `backend/README.md` y `docs/Documentacion_Notix.md`.
 
 1. **Dependencias en `Notix/gradle/libs.versions.toml` y `Notix/app/build.gradle.kts`:**
    - `com.squareup.retrofit2:retrofit:2.11.0`
@@ -97,12 +99,14 @@ Todas las opciones son públicas, gratuitas y **no requieren API Key** (cumplien
 | Opción | API Externa | `baseUrl` y Endpoint `GET` | Aporte al contexto NotariaX | Dónde mostrarla en la UI |
 | :--- | :--- | :--- | :--- | :--- |
 | **Opción 1** | **Mindicador.cl**<br>*(Indicadores económicos Chile)* | **Base:** `https://mindicador.cl/`<br>**GET:** `api` | Entrega el valor real del día de la **UF** y **UTM** en pesos chilenos (referencia para aranceles y cuantías notariales). | Tarjeta en `CatalogoFormatosScreen` o `CrearTramiteScreen`: *"Valor UF hoy: $XX.XXX CLP (Referencia arancelaria)"*. |
-| **Opción 2** | **Nager.Date**<br>*(Feriados legales Chile)* | **Base:** `https://date.nager.at/`<br>**GET:** `api/v3/PublicHolidays/2026/CL` | Entrega los feriados legales de Chile en 2026 para informar plazos de revisión en **días hábiles**. | Banner en `MisTramitesScreen` o `BandejaNotarioScreen`: *"Próximo día inhábil: [Nombre] ([Fecha])"*. |
+| **Opción 2 (elegida)** | **Nager.Date**<br>*(Feriados legales Chile)* | **Base:** `https://date.nager.at/`<br>**GET:** `api/v3/NextPublicHolidays/CL` | Entrega el próximo feriado legal de Chile para informar plazos de revisión en **días hábiles**. | Tarjeta en `CatalogoFormatosScreen`: *"Próximo feriado: [Nombre] · [Fecha]"*. |
 | **Opción 3** | **Open-Meteo**<br>*(Clima en tiempo real)* | **Base:** `https://api.open-meteo.com/`<br>**GET:** `v1/forecast?latitude=-33.49&longitude=-70.61&current_weather=true` | Entrega temperatura y estado del clima en Santiago/Macul para trámites que requieran firma o retiro presencial. | Encabezado informativo en `WelcomeScreen` o `MisTramitesScreen`. |
 
 ---
 
 ### Fase 4: Pruebas Unitarias con Cobertura ≥ 80 % (`IE 3.2.1` — 15 %)
+
+> ✅ **Implementada el 23-11-2026:** 82 pruebas JVM con JUnit, MockK y `kotlinx-coroutines-test`, más 7 pruebas DAO instrumentadas con Room; cobertura de línea **96,26 %** y umbral de 80 % verificado con JaCoCo. Se refactorizaron `LoginViewModel`/`AuthViewModel` para inyectar el repositorio. Reporte en `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
 
 La rúbrica exige cubrir al menos el **80 % de la lógica** en módulos como `ViewModel` o `Repository` usando **JUnit, MockK o Kotest**.
 

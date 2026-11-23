@@ -23,12 +23,12 @@ Este documento no reemplaza el plan: lo aterriza. El orden recomendado de lectur
 
 | Decisión | Recomendación | Motivo |
 |---|---|---|
-| API externa | **Mindicador.cl** (`GET https://mindicador.cl/api`) | Aporta UF/UTM reales, útil para aranceles notariales, sin API Key y con respuesta simple. |
+| API externa | **Nager.Date** (`GET https://date.nager.at/api/v3/NextPublicHolidays/CL`) | Aporta el próximo feriado de Chile, útil para plazos en días hábiles, sin API Key. Se cambió desde Mindicador porque su servidor no respondía en el entorno de prueba. |
 | Base de datos backend | **H2 en archivo** (`jdbc:h2:file:...;AUTO_SERVER=TRUE`) | Cero instalación, persiste entre reinicios y permite mostrar consola H2 en la defensa. |
-| Lenguaje backend | **Java 21 + Spring Boot 3.5.x** | Es el stack más documentado para la pauta y evita fricción con Kotlin/Spring. |
+| Lenguaje backend | **Java 21 + Spring Boot 4.2** | Implementado; se actualizó desde la propuesta inicial 3.5.x a la versión estable disponible. |
 | Estrategia de datos en la app | **Remoto primero + Room como caché/sesión** | Cumple “envío, recepción y actualización” sin perder la base local que ya funciona. |
 | Sesión | **SharedPreferences** (`SessionManager`) | Menos dependencias y tiempo que DataStore; suficiente para logout y persistencia básica. |
-| Migración Room | Subir a versión 3 con `MIGRATION_2_3` explícita y conservar `fallbackToDestructiveMigration()` como respaldo | Room sigue siendo la fuente de verdad mientras no exista backend; borrar la base local perdería trámites de la demo. |
+| Migración Room | Subir a versión 3 con `MIGRATION_2_3` explícita y conservar `fallbackToDestructiveMigration()` como respaldo | El backend es la fuente de verdad, pero la migración evita perder la caché y los datos demo locales. |
 | Navegación | Mantener el `enum Pantalla` de `MainActivity` | Cambiar a Navigation Compose no suma puntaje directo y consume tiempo. |
 
 ---
@@ -54,15 +54,19 @@ Este documento no reemplaza el plan: lo aterriza. El orden recomendado de lectur
 | `ms-usuarios` Spring Boot | Funcional en 8081, H2, CRUD y login | `backend/ms-usuarios/` |
 | `ms-tramites` Spring Boot | Funcional en 8082, H2, trámites/avisos | `backend/ms-tramites/` |
 | Pruebas del backend | 11 pruebas de contexto y HTTP | `backend/*/src/test/` |
+| Retrofit app ↔ backend | Funcional: login, registro, trámites y avisos | `data/remote/`, `AuthRepository`, `TramiteRepository` |
+| Perfil y navegación inferior | Funcional: Trámites, Avisos y Perfil | `PerfilScreen.kt`, `BarraInferiorPersona.kt`, `PerfilViewModel.kt` |
+| API externa | Funcional con Nager.Date (próximo feriado) y fallback | `FeriadosRepository`, `CatalogoFormatosScreen` |
+| Sincronización Room ↔ API | Refresco al entrar a pantallas y escrituras remoto-primero | `TramiteDao`, `TramiteRepository` |
 
 ### 1.2 Brechas frente a la EP4
 
 | Brecha | Estado actual | Impacto |
 |---|---|---|
-| Integración app ↔ microservicios | Backend implementado, pero sin Retrofit ni consumo desde la app | IE 3.1.3 = 0 |
-| API externa | No implementada | IE 3.1.4 = 0 |
-| DELETE desde la UI | No existe | CRUD incompleto en IE 3.1.3 |
-| Pruebas unitarias | Solo `ExampleUnitTest` | IE 3.2.1 = 0 |
+| DELETE desde la UI | Implementado para trámites no finalizados | IE 3.1.3 cubierto |
+| Resolución de conflictos Room ↔ API | Solo refresco simple | Riesgo si se edita desde varios clientes |
+| Pruebas unitarias de la app | 82 pruebas JVM + 7 DAO, 96,26 % de línea y umbral JaCoCo de 80 % | IE 3.2.1 cubierto |
+| Perfil y navegación inferior | Trámites, Avisos y Perfil conectados | `PerfilScreen`, `BarraInferiorPersona` |
 | APK firmado | Sin `signingConfigs` ni `.jks` | IE 3.3.1 = 0 |
 | README con 6 apartados | README existe, pero no cumple los 6 puntos EP4 | IE 3.3.2 parcial |
 | Trello / commits de ambos | No evidenciado en el repo | IE 3.3.2 parcial |
@@ -120,7 +124,7 @@ Estos puntos no están explícitos en el plan, pero si no se corrigen, la integr
 | **IE 3.1.1** App con todas las pantallas y flujos | 15 % | Flujos completos, sin errores de navegación/ejecución | Firma simulada, corregir/reenviar, legibilidad obligatoria, logout Persona/Empresa, cancelar trámite, botón atrás. |
 | **IE 3.1.2** Microservicios con BD y endpoints | 15 % | Todos los microservicios, BD operativa, endpoints coherentes | `ms-usuarios:8081` y `ms-tramites:8082`, H2 en archivo, CRUD, seeder, manejo de errores. |
 | **IE 3.1.3** Integración app ↔ microservicios | 15 % | CRUD completo desde la interfaz, sin errores | Retrofit, DTOs, repositorios remotos, sesión, refresco, manejo de errores de red. |
-| **IE 3.1.4** API externa integrada visualmente | 15 % | Consumo correcto y visible, sin interferir con lo propio | Mindicador en `CatalogoFormatosScreen`, `runCatching`, tarjeta con UF y fallback. |
+| **IE 3.1.4** API externa integrada visualmente | 15 % | Consumo correcto y visible, sin interferir con lo propio | Nager.Date en `CatalogoFormatosScreen`, `runCatching`, tarjeta con próximo feriado y fallback. |
 | **IE 3.2.1** Pruebas unitarias ≥ 80 % | 15 % | JUnit/MockK, funcionales, cobertura verificable | Suites de `RutValidator`, repositorios y ViewModels; evidencia con cobertura. |
 | **IE 3.3.1** APK firmado | 10 % | `.jks`, `signingConfigs`, APK funcional | KeyStore, configuración Gradle, `assembleRelease`, verificación con `apksigner`. |
 | **IE 3.3.2** GitHub/Trello/colaboración | 15 % | Commits técnicos de ambos, tareas distribuidas | Ramas, commits por integrante en app y backend, tablero Trello, README de 6 puntos. |
@@ -141,20 +145,22 @@ Estos puntos no están explícitos en el plan, pero si no se corrigen, la integr
 │           ▼                          ▼                          ▼          │
 │  ┌─────────────────┐      ┌─────────────────────┐     ┌──────────────────┐ │
 │  │ Room (caché)     │      │ Retrofit Backend    │     │ Retrofit Externa │ │
-│  │ sesión + espejo  │      │ ms-usuarios:8081    │     │ Mindicador       │ │
-│  │ de datos         │      │ ms-tramites:8082    │     │ (UF/UTM)         │ │
+│  │ sesión + espejo  │      │ ms-usuarios:8081    │     │ Nager.Date       │ │
+│  │ de datos         │      │ ms-tramites:8082    │     │ (feriados)       │ │
 │  └─────────────────┘      └──────────┬──────────┘     └────────┬─────────┘ │
 └───────────────────────────────────────┼─────────────────────────┼──────────┘
                                         │ JSON                    │ HTTPS
                                         ▼                         ▼
                              ┌─────────────────────┐      ┌──────────────────┐
-                             │ Spring Boot + H2    │      │ mindicador.cl    │
-                             │ ms-usuarios         │      │ GET /api         │
+                             │ Spring Boot + H2    │      │ date.nager.at    │
+                             │ ms-usuarios         │      │ NextPublicHolidays│
                              │ ms-tramites         │      └──────────────────┘
                              └─────────────────────┘
 ```
 
 ### 3.1 Decisión: remoto primero, Room como caché
+
+> ✅ **Implementado en la Fase 3.** La UI mantiene los `Flow` de Room; las escrituras van primero a Retrofit y luego actualizan Room. El login admite fallback local cuando no hay red.
 
 No conviene que la app siga escribiendo solo en Room y “luego sincronice”, porque la pauta exige demostrar que los datos viajan al backend en tiempo real. La estrategia recomendada es:
 
@@ -171,6 +177,8 @@ Esto permite:
 - Cumplir “envío, recepción y actualización de datos”.
 
 ### 3.2 Decisión: la API externa nunca bloquea
+
+> ✅ **Implementado:** `FeriadosRepository` usa `runCatching`; la tarjeta de `CatalogoFormatosScreen` muestra el próximo feriado o un texto de respaldo. No interviene en la creación ni en el envío de trámites.
 
 La API externa se encapsula en su propio `RetrofitClient`, su propio repositorio y su propio ViewModel. Cualquier error debe devolver `null` y la UI debe mostrar un texto de respaldo. Nunca debe impedir crear, enviar o revisar un trámite.
 
@@ -214,7 +222,7 @@ caso-NotariaX/
 └── README.md
 ```
 
-Cada microservicio tiene su propia base H2 y se ejecuta por separado. La app Android aún no consume estos servicios.
+Cada microservicio tiene su propia base H2 y se ejecuta por separado. La app Android los consume con Retrofit (ver sección 3 y 6).
 
 ### 4.2 Dependencias reales (Maven)
 
@@ -617,7 +625,7 @@ android {
         // ...
         buildConfigField("String", "USUARIOS_BASE_URL", "\"http://10.0.2.2:8081/\"")
         buildConfigField("String", "TRAMITES_BASE_URL", "\"http://10.0.2.2:8082/\"")
-        buildConfigField("String", "EXTERNAL_BASE_URL", "\"https://mindicador.cl/\"")
+        buildConfigField("String", "EXTERNAL_BASE_URL", "\"https://date.nager.at/\"")
     }
 
     testOptions {
@@ -637,6 +645,8 @@ dependencies {
 ```
 
 **Sobre `buildConfigField`:** permite cambiar la URL sin tocar código. Para emulador usar `10.0.2.2`. Para teléfono físico, reemplazar por la IP LAN del PC, por ejemplo `http://192.168.1.50:8081/`.
+
+> La implementación actual no usa `buildConfigField`: las URLs están en `ApiConfig.kt`. Es una mejora pendiente si se quiere cambiar de entorno sin recompilar.
 
 ### 5.3 `AndroidManifest.xml`
 
@@ -660,6 +670,8 @@ android:usesCleartextTraffic="true"
 
 ## 6. Android: capa remota
 
+> ✅ **Implementado.** La estructura real está en `Notix/app/src/main/java/com/duoc/notix/data/remote/`: `ApiConfig.kt`, `RetrofitProviders.kt`, `ApiErrors.kt`, `RemoteMappers.kt`, `api/` y `dto/`. No se usaron campos `BuildConfig`; las URLs son constantes en `ApiConfig`.
+
 ### 6.1 Estructura de paquetes recomendada
 
 ```text
@@ -676,7 +688,7 @@ Notix/app/src/main/java/com/duoc/notix/
 │   │   ├── api/
 │   │   │   ├── UsuariosApi.kt
 │   │   │   ├── TramitesApi.kt
-│   │   │   └── IndicadoresApi.kt
+│   │   │   └── FeriadosApi.kt
 │   │   ├── client/
 │   │   │   ├── UsuariosRetrofitClient.kt
 │   │   │   ├── TramitesRetrofitClient.kt
@@ -690,14 +702,16 @@ Notix/app/src/main/java/com/duoc/notix/
 ├── repository/
 │   ├── AuthRepository.kt
 │   ├── TramiteRepository.kt
-│   └── IndicadoresRepository.kt
+│   └── FeriadosRepository.kt
 └── viewmodel/
-    └── IndicadoresViewModel.kt
+    └── FeriadosViewModel.kt
 ```
 
 > No es obligatorio mover los archivos existentes. Lo importante es que la nueva capa remota tenga paquetes claros y que los repositorios sean inyectables.
 
 ### 6.2 `ApiResult`
+
+> La implementación real no usa `ApiResult`: `ApiErrors.kt` expone `apiCall`, que traduce `HttpException`/`IOException` a mensajes y lanza `IllegalStateException` para que los ViewModels existentes lo muestren. `AuthRepository` distingue `IOException` para el fallback local.
 
 ```kotlin
 sealed interface ApiResult<out T> {
@@ -833,13 +847,15 @@ interface TramitesApi {
     suspend fun marcarAvisoLeido(@Path("id") id: String)
 }
 
-interface IndicadoresApi {
-    @GET("api")
-    suspend fun indicadores(): IndicadorResponse
+interface FeriadosApi {
+    @GET("api/v3/NextPublicHolidays/{pais}")
+    suspend fun proximos(@Path("pais") pais: String): List<FeriadoDto>
 }
 ```
 
 ### 6.5 Clientes Retrofit
+
+> La implementación real usa `RetrofitProviders` con clientes `UsuariosApiProvider`, `TramitesApiProvider` y `FeriadosApiProvider`, logging `BASIC` y las URLs de `ApiConfig`. El siguiente snippet es la propuesta original; no copiarlo literalmente.
 
 ```kotlin
 object UsuariosRetrofitClient {
@@ -867,94 +883,86 @@ object UsuariosRetrofitClient {
 
 Repetir para `TramitesRetrofitClient` con `BuildConfig.TRAMITES_BASE_URL` y para `ExternalRetrofitClient` con timeouts más cortos (5 s).
 
-### 6.6 API externa: Mindicador
+### 6.6 API externa: Nager.Date
+
+**Endpoint implementado**
+
+```text
+GET https://date.nager.at/api/v3/NextPublicHolidays/CL
+```
 
 **Respuesta esperada (resumida)**
 
 ```json
-{
-  "version": "1.7.0",
-  "autor": "mindicador.cl",
-  "fecha": "2026-11-20T12:00:00.000Z",
-  "uf": {
-    "codigo": "UF",
-    "nombre": "Unidad de Fomento",
-    "unidad": "CLP",
-    "valor": 39450.12,
-    "fecha": "2026-11-20T12:00:00.000Z"
-  },
-  "utm": {
-    "codigo": "UTM",
-    "nombre": "Unidad Tributaria Mensual",
-    "unidad": "CLP",
-    "valor": 67500.0,
-    "fecha": "2026-11-20T12:00:00.000Z"
+[
+  {
+    "date": "2026-12-08",
+    "localName": "Inmaculada Concepción",
+    "name": "Immaculate Conception",
+    "countryCode": "CL",
+    "global": true
   }
-}
+]
 ```
 
-**Modelos**
+**Modelo**
 
 ```kotlin
-data class IndicadorResponse(
-    val uf: IndicadorDto? = null,
-    val utm: IndicadorDto? = null,
-    val fecha: String? = null
+data class FeriadoDto(
+    val date: String = "",
+    val localName: String = "",
+    val name: String = "",
+    val countryCode: String = "CL",
+    val global: Boolean = true
 )
 
-data class IndicadorDto(
-    val codigo: String? = null,
-    val nombre: String? = null,
-    val unidad: String? = null,
-    val valor: Double? = null,
-    val fecha: String? = null
-)
+interface FeriadosApi {
+    @GET("api/v3/NextPublicHolidays/{pais}")
+    suspend fun proximos(@Path("pais") pais: String): List<FeriadoDto>
+}
 ```
 
 **Repositorio aislado**
 
-La llamada debe quedar envuelta en `runCatching` y devolver `null` ante cualquier fallo, tal como pide el plan:
-
 ```kotlin
-class IndicadoresRepository(
-    private val api: IndicadoresApi = ExternalRetrofitClient.api
+data class Feriado(val fecha: String, val nombre: String)
+
+class FeriadosRepository(
+    private val api: FeriadosApi = FeriadosApiProvider.api
 ) {
-    suspend fun obtenerUf(): IndicadorDto? = runCatching {
-        api.indicadores().uf
+    suspend fun obtenerProximoFeriado(): Feriado? = runCatching {
+        api.proximos("CL").firstOrNull()?.let { dto ->
+            Feriado(
+                fecha = fechaDiaAApp(dto.date),
+                nombre = dto.localName.ifBlank { dto.name }
+            )
+        }
     }.getOrNull()
 }
 ```
 
-Si se prefiere conservar el error para mostrarlo:
-
-```kotlin
-suspend fun obtenerUfConError(): Result<IndicadorDto?> = runCatching {
-    api.indicadores().uf
-}
-```
-
-En ambos casos la UI debe tratar `null` o `failure` como “indicador no disponible” y permitir continuar.
+Cualquier fallo de red, HTTP o formato devuelve `null`. La UI muestra un respaldo y permite continuar.
 
 **ViewModel**
 
 ```kotlin
-data class IndicadoresUiState(
+data class FeriadoUiState(
     val cargando: Boolean = true,
-    val uf: Double? = null,
+    val nombre: String? = null,
     val fecha: String? = null,
-    val error: String? = null
+    val sinDatos: Boolean = false
 )
 ```
 
 **UI en `CatalogoFormatosScreen`**
 
-Agregar una tarjeta al inicio de la lista:
+Tarjeta al inicio de la lista:
 
-- Cargando: `"Consultando valor de la UF..."`.
-- Éxito: `"UF hoy: $39.450 CLP — Referencia arancelaria"`.
-- Error: `"Indicador no disponible. Puedes continuar con tu trámite."`.
+- Cargando: `"Consultando el próximo feriado…"`.
+- Éxito: `"Inmaculada Concepción · 08/12/2026"`.
+- Error: `"Feriados no disponibles. Puedes continuar con tu trámite."`.
 
-La llamada debe ejecutarse en `LaunchedEffect(Unit)` y no debe bloquear el resto de la pantalla. Si se prefiere, se puede mostrar también en `MisTramitesScreen`, pero basta con una ubicación visible y coherente.
+La llamada se ejecuta desde `FeriadosViewModel` al crear la pantalla y no bloquea el resto del catálogo.
 
 ---
 
@@ -1008,7 +1016,7 @@ Responsabilidades:
    - `409` → “Ya existe una cuenta con ese correo.”
    - `IOException` → “Sin conexión con el servidor.”
 
-No volver a comparar contraseñas localmente. La fuente de verdad es el backend.
+La fuente de verdad es el backend. **Excepción implementada:** si falla la red (`IOException`), `AuthRepository` permite validar la copia local para no bloquear la demo; no debe considerarse autenticación de producción.
 
 ### 7.3 `TramiteRepository` remoto + caché
 
@@ -1264,6 +1272,8 @@ fun cerrarSesion() {
 
 ### 8.5 Cancelar/eliminar trámite (CRUD DELETE)
 
+> ✅ **Implementado:** botón “Eliminar trámite” en el detalle, solo para estados no finalizados. Pide confirmación, llama a `DELETE /api/tramites/{id}` y borra en Room el trámite, documentos, historial y avisos. Verificado en dispositivo físico.
+
 **Motivo:** la pauta exige operaciones CRUD desde la interfaz. Actualmente no hay ninguna acción de borrado.
 
 **UI**
@@ -1285,18 +1295,12 @@ fun cerrarSesion() {
 
 ### 8.6 Tarjeta de API externa
 
-**Archivo:** `ui/screens/CatalogoFormatosScreen.kt` + `viewmodel/IndicadoresViewModel.kt` + `repository/IndicadoresRepository.kt`.
+**Archivo:** `ui/screens/CatalogoFormatosScreen.kt` + `viewmodel/FeriadosViewModel.kt` + `data/repository/FeriadosRepository.kt`.
 
 - Agregar la tarjeta al inicio de la `LazyColumn`.
-- Mostrar `UF` y, si se quiere, `UTM`.
-- Formatear en CLP:
-
-```kotlin
-val formato = NumberFormat.getCurrencyInstance(Locale("es", "CL"))
-Text("UF hoy: ${formato.format(uf)}")
-```
-
-- Si `uf == null`, mostrar el texto de respaldo y permitir continuar.
+- Mostrar el nombre y la fecha del próximo feriado de Chile.
+- La fecha se formatea con `fechaDiaAApp` (`2026-12-08` → `08/12/2026`).
+- Si no hay datos, mostrar el texto de respaldo y permitir continuar.
 - No mostrar errores técnicos ni stack traces.
 
 ### 8.7 Navegación y botón atrás
@@ -1363,6 +1367,8 @@ Actualizar:
 
 ## 10. Pruebas unitarias y cobertura ≥ 80 %
 
+> ✅ **Implementado el 23-11-2026:** 82 pruebas JVM con JUnit, MockK y `kotlinx-coroutines-test`; cobertura de línea 96,26 % y de ramas 75,61 %. JaCoCo genera XML/HTML y `jacocoTestCoverageVerification` exige 80 % de línea. Las refactorizaciones de esta sección se aplicaron a `LoginViewModel` y `AuthViewModel`.
+
 ### 10.1 Dependencias
 
 Ya agregadas en la sección 5:
@@ -1388,7 +1394,7 @@ Sin estos cambios, la cobertura será artificial o los tests fallarán:
 3. **Quitar `SQLiteConstraintException` de `AuthRepository`.**
    - Usar `AuthResult.Error("...")` a partir de `ApiResult.Error`.
 4. **Abstraer la capa remota detrás de interfaces.**
-   - `UsuariosRemoteDataSource`, `TramitesRemoteDataSource`, `IndicadoresRemoteDataSource`.
+   - `UsuariosRemoteDataSource`, `TramitesRemoteDataSource`, `FeriadosRemoteDataSource`.
    - Los repositorios dependen de las interfaces; los tests usan fakes o MockK.
 5. **No usar `Dispatchers.Main` real en tests.**
    - Agregar `MainDispatcherRule`.
@@ -1418,7 +1424,7 @@ class MainDispatcherRule(
 | `MisTramitesViewModelTest` | Filtros, contadores, alerta de devuelto, avisos sin leer, refresco | Estado de pantalla |
 | `BandejaNotarioViewModelTest` | Filtros, contadores, aprobar, devolver, trámite finalizado bloqueado | Reglas del notario |
 | `CrearTramiteViewModelTest` | Validación de nombre/RUN/correo/comuna, doble envío, firma obligatoria, éxito, error de backend | Formulario y guardado |
-| `IndicadoresRepositoryTest` | UF OK, respuesta sin UF, excepción de red → `null`/`Result.failure` | Aislamiento de API externa |
+| `FeriadosRepositoryTest` | Feriado OK, lista vacía o excepción de red → `null` | Aislamiento de API externa |
 
 ### 10.4 Ejemplo de test con StateFlow
 
@@ -1451,21 +1457,21 @@ Para pruebas de ViewModels con `viewModelScope`, usar `Dispatchers.setMain(Stand
 - `data/validation`
 - `data/remote` (mappers y manejo de errores)
 
-**Evidencia:** captura del reporte con el porcentaje ≥ 80 % en `docs/evidencias/cobertura.png`.
+**Evidencia:** reporte generado por JaCoCo en `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
 
-**Opción automatizada:** si el equipo quiere un umbral en CI, evaluar Kover. No es obligatorio y puede consumir tiempo de configuración con AGP 9. La pauta acepta la cobertura de Android Studio.
+**Opción automatizada:** implementada con JaCoCo. `jacocoTestCoverageVerification` falla si la cobertura de línea baja de 80 %.
 
 ### 10.6 Comando de ejecución
 
 ```bash
 cd Notix
-./gradlew testDebugUnitTest
+./gradlew :app:testDebugUnitTest :app:jacocoTestReport :app:jacocoTestCoverageVerification
 ```
 
 Reporte HTML:
 
 ```text
-Notix/app/build/reports/tests/testDebugUnitTest/index.html
+Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html
 ```
 
 ---
@@ -1599,7 +1605,7 @@ El `README.md` actual no cumple la estructura EP4. Reemplazarlo o ampliarlo con:
 2. **Integrantes:** nombre y apellido de ambos.
 3. **Funcionalidades:** login/registro, catálogo, creación, firma simulada, bandeja, aprobar/devolver, corregir/reenviar, avisos, API externa, cancelar.
 4. **Endpoints utilizados:**
-   - API externa: `GET https://mindicador.cl/api`.
+   - API externa: `GET https://date.nager.at/api/v3/NextPublicHolidays/CL`.
    - `ms-usuarios`: tabla de endpoints.
    - `ms-tramites`: tabla de endpoints.
 5. **Pasos para ejecutar:**
@@ -1638,7 +1644,7 @@ Tarjetas mínimas, asignadas y con fecha:
 | Corregir/reenviar + cancelar trámite | Integrante A |
 | Legibilidad obligatoria + bloqueo de estados | Integrante B |
 | Logout Persona/Empresa + botón atrás | Integrante A |
-| API externa Mindicador + tarjeta UI | Integrante A |
+| API externa Nager.Date + tarjeta UI | Integrante A |
 | Pruebas unitarias + cobertura ≥ 80 % | Ambos |
 | APK firmado + verificación | Integrante B |
 | README + Trello + evidencias | Ambos |
@@ -1690,7 +1696,7 @@ docs: agrega README EP4 y evidencias
 | 4 | Retrofit + DTOs + `SessionManager` + repositorios remotos | App lista para consumir backend |
 | 5 | Integración de login, trámites, avisos y refresco | Flujo principal contra backend |
 | 6 | Firma simulada, legibilidad, corregir/reenviar, cancelar, logout | Fase 1 cerrada |
-| 7 | API externa Mindicador + tarjeta UI + fallback | API visible sin bloquear |
+| 7 | API externa Nager.Date + tarjeta UI + fallback | API visible sin bloquear |
 | 8 | Pruebas unitarias de repositorios y ViewModels | Suites verdes |
 | 9 | Cobertura ≥ 80 %, APK firmado, README y Trello | Evidencias EP4 |
 | 10 | Ensayo de demo, corrección de bugs, congelamiento | Entrega AVA |
@@ -1715,10 +1721,10 @@ docs: agrega README EP4 y evidencias
 - [ ] La persona corrige y reenvía un trámite devuelto.
 - [ ] La persona puede cancelar un trámite no finalizado.
 - [ ] La firma simulada se exige antes de enviar.
-- [ ] La tarjeta de UF se muestra y tiene fallback si falla la API.
+- [ ] La tarjeta del próximo feriado se muestra y tiene fallback si falla la API.
 - [ ] Logout funciona para Persona, Empresa y Notario.
-- [ ] Las pruebas unitarias pasan.
-- [ ] La cobertura de lógica es ≥ 80 %.
+- [x] Las pruebas unitarias pasan (77).
+- [x] La cobertura de línea es ≥ 80 % (96,26 %).
 - [ ] El APK release está firmado y verificado.
 - [ ] El README tiene los 6 apartados.
 - [ ] Trello tiene tareas distribuidas y evidencia.
@@ -1728,7 +1734,7 @@ docs: agrega README EP4 y evidencias
 ### 14.2 Guion de demo (5–7 minutos)
 
 1. Mostrar los dos microservicios corriendo y la consola H2.
-2. Abrir la app y mostrar la tarjeta de UF.
+2. Abrir la app y mostrar la tarjeta del próximo feriado.
 3. Login como Persona (`ana.demo@notariax.test` / `demo123`).
 4. Crear un trámite:
    - Elegir formato.
@@ -1779,8 +1785,8 @@ docs: agrega README EP4 y evidencias
 | `backend/ms-tramites/**` | Microservicio de trámites, documentos, historial y avisos. |
 | `Notix/app/src/main/java/com/duoc/notix/data/remote/**` | DTOs, APIs, clientes Retrofit y mappers. |
 | `Notix/app/src/main/java/com/duoc/notix/data/session/SessionManager.kt` | Sesión persistida. |
-| `Notix/app/src/main/java/com/duoc/notix/repository/IndicadoresRepository.kt` | API externa aislada. |
-| `Notix/app/src/main/java/com/duoc/notix/viewmodel/IndicadoresViewModel.kt` | Estado de la tarjeta UF. |
+| `Notix/app/src/main/java/com/duoc/notix/data/repository/FeriadosRepository.kt` | API externa aislada. |
+| `Notix/app/src/main/java/com/duoc/notix/viewmodel/FeriadosViewModel.kt` | Estado de la tarjeta de feriados. |
 | `Notix/app/src/main/java/com/duoc/notix/ui/components/FirmaSimuladaDialog.kt` | Firma Canvas/e-token/notariada. |
 | `Notix/app/src/main/java/com/duoc/notix/ui/components/CorreccionTramiteDialog.kt` | Corregir y reenviar. |
 | `Notix/app/src/test/java/com/duoc/notix/**` | Suites unitarias. |
@@ -1806,7 +1812,7 @@ docs: agrega README EP4 y evidencias
 | `ui/screens/CrearTramiteScreen.kt` | Paso de firma, legibilidad inicial `false`. |
 | `ui/screens/MisTramitesScreen.kt` | Corregir/reenviar, cancelar, logout, detalle actualizado. |
 | `ui/screens/BandejaNotarioScreen.kt` | Checkbox, bloqueo de estados, refresco. |
-| `ui/screens/CatalogoFormatosScreen.kt` | Tarjeta de UF/UTM. |
+| `ui/screens/CatalogoFormatosScreen.kt` | Tarjeta del próximo feriado. |
 | `ui/screens/AvisosScreen.kt` | Logout, marcar leído remoto, navegación. |
 | `model/Tramite.kt` | `firmaEvidencia`, `fechaCreacion`, `fechaActualizacion`. |
 | `data/local/Entities.kt` | Campos nuevos. |
@@ -1835,7 +1841,7 @@ docs: agrega README EP4 y evidencias
 6. **UI Fase 1.**
    - Firma, reenvío, legibilidad, logout, cancelar.
 7. **API externa.**
-   - Mindicador + tarjeta.
+   - Nager.Date + tarjeta.
 8. **Pruebas.**
    - Refactor de testabilidad, suites, cobertura.
 9. **APK.**
@@ -1849,12 +1855,11 @@ docs: agrega README EP4 y evidencias
 
 ## 18. Resumen de una página
 
-- **Lo que ya hay:** app Compose funcional, Room, login local, creación de trámites, firma simulada, corrección/reenvío, legibilidad obligatoria, logout, bandeja del notario y avisos. Además, dos microservicios Spring Boot con H2, seeders, CRUD y 11 pruebas.
-- **Lo que falta:** integrar la app con el backend mediante Retrofit, API externa, DELETE desde la UI, pruebas de la app con cobertura ≥ 80 %, APK firmado y README/Trello/evidencias.
-- **Arquitectura actual:** app → ViewModels → repositorios → Room. El backend funciona por separado y todavía no es fuente de verdad de la app.
-- **Arquitectura objetivo (Fase 3):** app → ViewModels → repositorios → Retrofit (8081/8082) + Room caché + API externa aislada.
+- **Lo que ya hay:** app Compose funcional, Room como caché, login/registro y trámites contra el backend, firma simulada, corrección/reenvío, legibilidad obligatoria, logout, bandeja del notario, avisos, Retrofit y API externa del próximo feriado. Además, dos microservicios Spring Boot con H2, seeders, CRUD y 11 pruebas.
+- **Lo que falta:** resolución de conflictos de sincronización, pruebas de UI/instrumentadas, verificación del APK firmado y README/Trello/evidencias.
+- **Arquitectura actual:** app → ViewModels → repositorios → Retrofit (8081/8082) + Room caché + Retrofit Nager.Date.
 - **Backend:** implementado con dos microservicios, H2 en archivo, seeders y CRUD; genera historial y avisos.
-- **API externa:** Mindicador `GET /api`, tarjeta de UF en catálogo, fallback si falla.
-- **Pruebas:** JUnit + MockK + coroutines-test; cobertura ≥ 80 % en ViewModels/Repositorios/validación.
+- **API externa:** Nager.Date `NextPublicHolidays/CL`, tarjeta del próximo feriado, fallback si falla.
+- **Pruebas:** 82 tests JVM + 7 DAO con JUnit, MockK, coroutines-test y Room; cobertura de línea 96,26 %, ramas 75,61 % y umbral JaCoCo de 80 %.
 - **Entrega:** `.jks` + `assembleRelease` + `apksigner`, README de 6 puntos, Trello, commits de ambos, AVA grupal e individual.
 - **Riesgo principal:** que la app no compile o el backend no arranque en la defensa. Probar el flujo completo al menos dos veces antes de congelar.
