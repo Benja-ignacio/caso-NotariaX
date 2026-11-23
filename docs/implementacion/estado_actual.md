@@ -10,7 +10,7 @@
 
 Notix es una app Android académica para representar trámites notariales con información ficticia. La entrega implementada en el repositorio es una app Kotlin/Jetpack Compose con arquitectura **Compose → ViewModel → Repository → Room + Retrofit**. Tiene login/registro, selección de formatos, creación y consulta de trámites, firma simulada obligatoria, bandeja notarial, devolución/aprobación con legibilidad confirmada, corrección/reenvío, historial, avisos y logout para los tres perfiles. Además, `backend/` contiene dos microservicios Spring Boot (`ms-usuarios` y `ms-tramites`) con H2 persistente, API REST y seeders demo, consumidos por la app con Retrofit.
 
-En el árbol de fuentes inspeccionado existen Retrofit, API externa (Nager.Date), microservicios, pruebas de backend, 82 pruebas unitarias JVM con cobertura de línea de 96,26 % y 7 pruebas DAO instrumentadas. **No** existen pruebas de UI, keystore versionado ni APK dentro del repositorio; la configuración de firma usa variables de entorno. Room actúa como caché local de un backend que ya es la fuente de verdad para las escrituras.
+En el árbol de fuentes inspeccionado existen Retrofit, API externa (Nager.Date), microservicios, pruebas de backend, 82 pruebas unitarias JVM con cobertura de línea de 96,30 % y 7 pruebas DAO instrumentadas. **No** existen pruebas de UI, keystore versionado ni APK dentro del repositorio; la configuración de firma usa variables de entorno. Room actúa como caché local de un backend que ya es la fuente de verdad para las escrituras.
 
 La app no procesa trámites reales. Mantener datos de demostración y no incorporar credenciales, personas, firmas, documentos ni sistemas productivos.
 
@@ -20,7 +20,9 @@ La app no procesa trámites reales. Mantener datos de demostración y no incorpo
 >
 > **Fase 3 de la EP4 cerrada el 23-11-2026:** Retrofit contra ambos microservicios, sincronización Room ↔ backend, fallback de login sin red y tarjeta del próximo feriado de Nager.Date con fallback. Verificado con compilación, `assembleDebug`, una prueba JVM de contrato y un flujo end-to-end en **dispositivo físico** con `adb reverse`: login, creación de `TX-2026-0043`, sincronización en Mis Trámites y aprobación desde la Bandeja del Notario; el backend confirmó `FINALIZADO`. También se verificó el login local y la caché sin backend, y la tarjeta mostró “Inmaculada Concepción · 08/12/2026”. El emulador local falló con `SIGSEGV`, pero el dispositivo físico sí completó el flujo.
 >
-> **Fase 4 de la EP4 cerrada el 23-11-2026:** 82 pruebas JVM con JUnit, MockK y `kotlinx-coroutines-test`; cobertura de línea 96,26 % y de ramas 75,61 %. JaCoCo genera reporte y `jacocoTestCoverageVerification` exige 80 % de línea. Se agregaron 7 pruebas DAO instrumentadas con Room en memoria. Se refactorizaron `LoginViewModel` y `AuthViewModel` para inyectar `AuthRepository`.
+> **Fase 4 de la EP4 cerrada el 23-11-2026:** 82 pruebas JVM con JUnit, MockK y `kotlinx-coroutines-test`; cobertura de línea 96,30 % y de ramas 74,93 %. JaCoCo genera reporte y `jacocoTestCoverageVerification` exige 80 % de línea. Se agregaron 7 pruebas DAO instrumentadas con Room en memoria. Se refactorizaron `LoginViewModel` y `AuthViewModel` para inyectar `AuthRepository`.
+>
+> **Notificaciones locales implementadas el 23-11-2026:** canal, permiso `POST_NOTIFICATIONS`, avisos nuevos al sincronizar, `PendingIntent` y deduplicación en SharedPreferences. Verificado en dispositivo físico con una devolución generada desde el backend.
 >
 > **DELETE desde la app implementado el 23-11-2026:** botón con confirmación para trámites no finalizados, llamada a `DELETE /api/tramites/{id}` y borrado local en cascada de documentos, historial y avisos. Verificado en dispositivo físico: `TX-2026-0042` desapareció del backend y de la UI.
 
@@ -183,7 +185,7 @@ La guía EP4 contiene propuestas, pero algunos diagnósticos deben verificarse c
 7. **Fechas e IDs:** el backend usa `fechaCreacion`/`fechaActualizacion` y genera IDs secuenciales `TX-2026-XXXX`; la app ya no genera IDs locales. La app aún no guarda `fechaCreacion` en el dominio y ordena los trámites por ID. No asumir orden cronológico en la UI.
 8. **API externa (resuelta):** se eligió Nager.Date para el próximo feriado de Chile y se aisló en `FeriadosRepository` con fallback. No es una dependencia obligatoria para crear o enviar trámites.
 9. **Room como caché (implementado parcialmente):** las lecturas se refrescan desde el backend y las escrituras remoto-primero actualizan Room. No hay resolución de conflictos ni borrado de trámites que desaparezcan del backend; documentar esa limitación si se prueba concurrencia.
-10. **No declarar verificación no realizada:** este documento se basa en inspección estática, en la compilación/`assembleDebug` de la app, en 82 pruebas JVM con JaCoCo (96,26 % de línea), en `./mvnw test` del backend, en llamadas HTTP locales, en una prueba JVM de contrato y en el flujo end-to-end ejecutado en dispositivo físico. El emulador local falló con `SIGSEGV`, por lo que no se usó. No se afirma cobertura de pruebas de UI ni que la app esté lista para producción.
+10. **No declarar verificación no realizada:** este documento se basa en inspección estática, en la compilación/`assembleDebug` de la app, en 82 pruebas JVM con JaCoCo (96,30 % de línea), en `./mvnw test` del backend, en llamadas HTTP locales, en una prueba JVM de contrato y en el flujo end-to-end ejecutado en dispositivo físico. El emulador local falló con `SIGSEGV`, por lo que no se usó. No se afirma cobertura de pruebas de UI ni que la app esté lista para producción.
 
 ## 7. Objetivo EP4 frente al estado observado
 
@@ -197,11 +199,11 @@ La guía EP4 contiene propuestas, pero algunos diagnósticos deben verificarse c
 | Corregir/re-enviar devueltos | Implementado, con reemplazo de documentos observados e historial |
 | Confirmación de legibilidad al aprobar | Implementada en diálogo, ViewModel y repositorio |
 | DELETE/cancelación desde UI | Implementado con confirmación y borrado local; backend y app coherentes |
-| Tests de lógica y cobertura ≥80 % | 82 pruebas unitarias JVM, 96,26 % de línea, 7 pruebas DAO y umbral JaCoCo de 80 %. El backend tiene 11 pruebas propias |
+| Tests de lógica y cobertura ≥80 % | 82 pruebas unitarias JVM, 96,30 % de línea, 7 pruebas DAO y umbral JaCoCo de 80 %. El backend tiene 11 pruebas propias |
 | APK firmado y `.jks` | No encontrados; Gradle no tiene `signingConfigs` |
 | README EP4, Trello y colaboración | El README existente no reemplaza la evidencia requerida; confirmar y completar puntos faltantes con datos reales del equipo |
 
-La EP4 requiere app funcional integrada, microservicios con BD y endpoints, integración CRUD, API externa visible, pruebas con cobertura mínima del 80 %, APK firmado y evidencia GitHub/Trello. La app ya consume los microservicios con Retrofit, muestra el próximo feriado de Nager.Date, elimina trámites no finalizados y tiene 96,26 % de cobertura de línea; quedan pruebas de UI y evidencias de entrega. La pauta PDF es la fuente normativa.
+La EP4 requiere app funcional integrada, microservicios con BD y endpoints, integración CRUD, API externa visible, pruebas con cobertura mínima del 80 %, APK firmado y evidencia GitHub/Trello. La app ya consume los microservicios con Retrofit, muestra el próximo feriado de Nager.Date, elimina trámites no finalizados, tiene notificaciones locales y 96,30 % de cobertura de línea; quedan notificaciones con app cerrada, pruebas de UI y evidencias de entrega. La pauta PDF es la fuente normativa.
 
 ## 8. Orden de trabajo sugerido y reglas de continuidad
 
@@ -211,7 +213,7 @@ Seguir el plan `implementacion_ep4_notix.md`, pero completar cada hito sin rompe
 2. ~~Crear los microservicios con contratos acordados, persistencia y datos ficticios reproducibles.~~ **Hecho (Fase 2, 23-11-2026):** `ms-usuarios` y `ms-tramites` con Spring Boot 4.2, H2, seeders, endpoints y 11 pruebas. Verificado con `./mvnw test` y llamadas HTTP locales. No consumir todavía estos contratos desde la app sin actualizar DTO y documentación.
 3. ~~Añadir Retrofit y capa remota, definir fuente de verdad y estrategia de error/refresco antes de reemplazar escrituras Room.~~ **Hecho (Fase 3, 23-11-2026):** backend remoto-primero, Room como caché y refresco al entrar a las pantallas. Falta resolver conflictos y eliminaciones remotas.
 4. ~~Añadir API externa de forma aislada, con carga/error/fallback; nunca bloquear operaciones notariales simuladas.~~ **Hecho (Fase 3):** Nager.Date con el próximo feriado en el catálogo y texto de respaldo.
-5. ~~Refactorizar dependencias donde se necesite para tests, luego implementar pruebas de reglas, transiciones y errores; medir cobertura real, no inferirla por cantidad de tests.~~ **Hecho (Fase 4, 23-11-2026):** 82 pruebas JVM, 96,26 % de línea, 75,61 % de ramas, 7 pruebas DAO y umbral JaCoCo de 80 %. Faltan pruebas de UI.
+5. ~~Refactorizar dependencias donde se necesite para tests, luego implementar pruebas de reglas, transiciones y errores; medir cobertura real, no inferirla por cantidad de tests.~~ **Hecho (Fase 4, 23-11-2026):** 82 pruebas JVM, 96,30 % de línea, 74,93 % de ramas, 7 pruebas DAO y umbral JaCoCo de 80 %. Faltan pruebas de UI.
 6. Configurar y generar APK firmado con secretos fuera del código y documentar requisitos de construcción. No registrar contraseñas de keystore en Git.
 7. Ajustar README y documentación a lo efectivamente implementado y agregar evidencia colaborativa real; no inventar integrantes, commits, capturas ni tablero.
 
@@ -238,6 +240,7 @@ Reglas para cualquier IA que continúe:
 | Estado del perfil | `Notix/app/src/main/java/com/duoc/notix/viewmodel/PerfilViewModel.kt` |
 | Clientes Retrofit y DTOs | `Notix/app/src/main/java/com/duoc/notix/data/remote/` |
 | Feriados externos | `Notix/app/src/main/java/com/duoc/notix/data/repository/FeriadosRepository.kt` |
+| Notificaciones locales | `Notix/app/src/main/java/com/duoc/notix/util/NotificacionUtil.kt` |
 | Firma simulada | `Notix/app/src/main/java/com/duoc/notix/ui/components/FirmaSimuladaDialog.kt` |
 | Corrección y reenvío | `Notix/app/src/main/java/com/duoc/notix/ui/components/CorreccionTramiteDialog.kt` |
 | Estado y casos de uso de pantalla | `Notix/app/src/main/java/com/duoc/notix/viewmodel/` |
@@ -254,6 +257,7 @@ Reglas para cualquier IA que continúe:
 ## 10. Referencias del proyecto
 
 - [`../Guia_ejecucion_y_pruebas.md`](../Guia_ejecucion_y_pruebas.md): pasos para levantar backend, conectar emulador/teléfono y probar el flujo completo.
+- [`../Comandos_utiles.md`](../Comandos_utiles.md): referencia rápida de build, tests, backend, adb, cobertura y APK.
 - [`../../backend/README.md`](../../backend/README.md): microservicios, endpoints, reglas de estado y ejecución local.
 - [`../contexto.md`](../contexto.md): caso, alcance académico y objetivo EP4.
 - [`plan_de_desarrollo_ep4_notix.md`](plan_de_desarrollo_ep4_notix.md): mapa de fases según la pauta.

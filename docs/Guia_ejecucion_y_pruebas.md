@@ -2,6 +2,8 @@
 
 > Guía práctica para levantar el backend, conectar la app y probar el flujo completo de la EP4.
 > Datos ficticios. No usar con trámites, firmas ni documentos reales.
+>
+> Referencia rápida de comandos: [`Comandos_utiles.md`](Comandos_utiles.md).
 
 ---
 
@@ -326,6 +328,20 @@ curl http://localhost:8082/api/tramites
 
 Los avisos se leen desde `ms-tramites` y se cachean en Room.
 
+**Probar notificación local:**
+
+1. En Android 13+ aceptar el permiso de notificaciones al entrar a Mis Trámites.
+2. Como notario, devolver un trámite o aprobarlo para generar un aviso nuevo.
+3. Volver a la app como Persona y abrir **Avisos** para forzar la sincronización.
+4. Debe aparecer una notificación del sistema con el mensaje del aviso.
+5. Verificar que no se duplica al volver a sincronizar.
+
+```bash
+adb shell dumpsys notification --noredact | grep -A8 com.duoc.notix
+```
+
+Las notificaciones son locales: dependen de que la app sincronice. Con la app cerrada no llegan todavía; para eso se necesitaría WorkManager o FCM.
+
 ### Paso 7 — Perfil y navegación inferior
 
 1. Tocar **Perfil** en la barra inferior.
@@ -380,7 +396,7 @@ cd Notix
 Resultado esperado:
 
 - **82 pruebas unitarias**, sin fallos.
-- **96,26 % de cobertura de línea** y 75,61 % de ramas.
+- **96,30 % de cobertura de línea** y 74,93 % de ramas.
 - Reporte: `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
 - El umbral de 80 % se verifica con `jacocoTestCoverageVerification`.
 
@@ -479,6 +495,7 @@ Detener ambos servicios antes de borrar `data/`. H2 mantiene el archivo abierto 
 - [ ] Perfil muestra los datos y permite cerrar sesión.
 - [ ] La barra inferior navega entre Trámites, Avisos y Perfil.
 - [ ] Los avisos se sincronizan.
+- [ ] Una devolución genera una notificación local sin duplicarse.
 - [ ] Sin backend se conserva la caché local y se informa el error.
 - [ ] `./mvnw test` pasa (11 pruebas).
 - [ ] `./gradlew :app:testDebugUnitTest` pasa (82 pruebas).

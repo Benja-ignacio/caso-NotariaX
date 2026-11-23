@@ -6,6 +6,7 @@ Aplicación Android académica para el caso **NotariaX** (DSY1105, Duoc UC). Per
 
 ## Documentación
 
+- **[Comandos útiles](docs/Comandos_utiles.md)** → referencia rápida de build, tests, backend, adb, cobertura y APK.
 - **[Guía de ejecución y pruebas](docs/Guia_ejecucion_y_pruebas.md)** → cómo levantar el backend, conectar emulador/teléfono y probar el flujo completo.
 - **[Documentación técnica y estado del proyecto](docs/Documentacion_Notix.md)** → arquitectura, persistencia Room, funcionalidades listas, pendientes y checklist de pruebas.
 - **[Carpeta de implementación EP4](docs/implementacion/estado_actual.md)** → estado actual para continuar el trabajo, plan, guía técnica y pauta del encargo.
@@ -28,8 +29,8 @@ Aplicación Android académica para el caso **NotariaX** (DSY1105, Duoc UC). Per
 | Microservicios Spring Boot `ms-usuarios` y `ms-tramites` | ✅ Implementados y probados |
 | Integración app Android ↔ backend (Retrofit) | ✅ Login, registro, trámites y avisos contra la API |
 | API externa visible en la app | ✅ Próximo feriado de Nager.Date con fallback |
-| Notificaciones del sistema | ❌ Pendiente |
-| Pruebas unitarias de la app | ✅ 82 pruebas JVM; cobertura de línea 96,26 % |
+| Notificaciones del sistema | ✅ Locales al sincronizar avisos nuevos (Android 13+) |
+| Pruebas unitarias de la app | ✅ 82 pruebas JVM; cobertura de línea 96,30 % |
 | Pruebas DAO con Room | ✅ 7 pruebas instrumentadas en dispositivo |
 | DELETE/cancelar desde la app | ✅ Con confirmación y sincronización con backend |
 
@@ -108,7 +109,7 @@ cd Notix
 ./gradlew :app:jacocoTestCoverageVerification
 ```
 
-Resultado actual: **82 pruebas unitarias**, sin fallos, y **96,26 % de cobertura de línea** en `viewmodel`, `repository`, `data/repository`, `data/validation`, `data/remote` y `util`.
+Resultado actual: **82 pruebas unitarias**, sin fallos, y **96,30 % de cobertura de línea** en `viewmodel`, `repository`, `data/repository`, `data/validation`, `data/remote` y `util`.
 
 Pruebas DAO con Room en dispositivo/emulador:
 

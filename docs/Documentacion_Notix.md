@@ -42,12 +42,12 @@ La app **no debe usarse para trámites notariales reales**. No integra servicios
 | Flujo Notario | ✅ Implementado en su mayoría |
 | Historial y avisos en base de datos | ✅ Implementado |
 | Selector nativo de archivos | ✅ Integrado (solo metadatos) |
-| Notificaciones del sistema | ❌ Pendiente |
+| Notificaciones del sistema | ✅ Locales al sincronizar; pendiente push con app cerrada |
 | Firma simulada (trazo/mock) | ✅ Implementada y obligatoria antes de enviar |
 | Corrección y reenvío tras devolución | ✅ Implementada |
 | Eliminar trámites no finalizados | ✅ Implementado con confirmación y backend |
 | Confirmación de legibilidad por el notario | ✅ Obligatoria para aprobar |
-| Pruebas unitarias/UI | ✅ 82 pruebas JVM + 7 pruebas DAO; cobertura de línea 96,26 %; faltan pruebas de UI |
+| Pruebas unitarias/UI | ✅ 82 pruebas JVM + 7 pruebas DAO; cobertura de línea 96,30 %; faltan pruebas de UI |
 | Navegación completa (perfil, atrás, logout) | ⚠️ Perfil y logout implementados; falta manejo del botón atrás |
 | Documentación | ✅ Este documento + README actualizado |
 
@@ -425,6 +425,7 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
   - Si el trámite está `DEVUELTO`, permite **Corregir y reenviar**: edita antecedentes, exige reemplazar documentos observados, limpia la observación, vuelve a `ENVIADO` y registra historial + aviso.
   - Si el trámite no está `FINALIZADO`, permite **Eliminar trámite** con confirmación. Llama a `DELETE /api/tramites/{id}` y borra de Room el trámite, documentos, historial y avisos.
   - Cierre de sesión con confirmación.
+  - Al sincronizar avisos nuevos, solicita permiso de notificaciones en Android 13+ y lanza una notificación local por cada aviso no leído que no se haya notificado antes.
 - `AvisosScreen`: lista de avisos, marca como leído al tocar y permite cerrar sesión.
 
 ### 7.3 Flujo Notario
@@ -487,11 +488,22 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
   - `AuthRepository` y `TramiteRepository` con APIs/DAOs simulados.
   - Mapeos DTO ↔ dominio y errores HTTP/red.
   - ViewModels de login, registro, trámites, bandeja, creación, avisos, perfil y feriados.
-- **Cobertura de línea: 96,26 %**. Cobertura de ramas: 75,61 %.
+- **Cobertura de línea: 96,30 %**. Cobertura de ramas: 74,93 %.
 - JaCoCo genera HTML/XML y `jacocoTestCoverageVerification` falla si la línea baja de 80 %.
 - Reporte: `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
 - Pendiente: pruebas de UI/instrumentadas.
 - Comando DAO: `./gradlew :app:connectedDebugAndroidTest`.
+
+### 7.8 Notificaciones locales
+
+- `NotificacionUtil` crea el canal “Avisos de trámites” y usa `NotificationCompat`.
+- En Android 13+ se solicita `POST_NOTIFICATIONS` desde Mis Trámites.
+- `TramiteRepository.refrescarAvisos` devuelve los avisos nuevos no leídos.
+- `MisTramitesViewModel` y `AvisosViewModel` notifican esos avisos.
+- Se deduplican IDs en `SharedPreferences` (`notix_notificaciones`).
+- El toque abre `MainActivity`.
+- Funciona cuando la app sincroniza; para avisos con la app cerrada se necesitaría WorkManager o FCM.
+- Verificado en dispositivo: un `PUT` de devolución generó el aviso y la notificación del sistema.
 
 ---
 
@@ -565,6 +577,8 @@ Para el flujo completo, los servicios deben estar levantados antes de usar la ap
 
 Guía detallada con comandos, conexión de dispositivos y flujo de prueba completo: [`Guia_ejecucion_y_pruebas.md`](Guia_ejecucion_y_pruebas.md).
 
+Referencia rápida de comandos: [`Comandos_utiles.md`](Comandos_utiles.md).
+
 ### Credenciales demo
 
 ```
@@ -592,10 +606,10 @@ Ordenados por impacto para la rúbrica y el flujo principal.
 
 ### Media prioridad
 
-3. **Notificaciones del sistema**
-   - Los avisos en Room no generan notificación Android.
-   - Implementar permiso `POST_NOTIFICATIONS` (API 33+) y `NotificationManager`.
-   - Notificar al devolver o finalizar un trámite.
+3. **Notificaciones en segundo plano**
+   - Las notificaciones locales ya funcionan cuando la app sincroniza.
+   - Para avisos con la app cerrada falta WorkManager o FCM.
+   - FCM requeriría backend desplegado y credenciales de Firebase.
 
 4. **Navegación y sesión**
    - La barra inferior ya navega entre Trámites, Avisos y Perfil; se eliminó el “Inicio” sin pantalla.
@@ -643,7 +657,7 @@ Ordenados por impacto para la rúbrica y el flujo principal.
 
 13. **Pruebas**
     - ✅ Pruebas unitarias de `RutValidator`, repositorios, mappers, fechas y ViewModels (77 en total).
-    - ✅ Cobertura de línea 96,26 % con JaCoCo y umbral mínimo de 80 %.
+    - ✅ Cobertura de línea 96,30 % con JaCoCo y umbral mínimo de 80 %.
     - Pendiente: pruebas de DAO/instrumentadas y pruebas de UI para login, creación y revisión.
 
 14. **Limpieza**
@@ -705,8 +719,8 @@ JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk ./gradlew \
 ```
 
 - **82 pruebas JVM**, sin fallos.
-- **96,26 % de cobertura de línea**.
-- **75,61 % de cobertura de ramas**.
+- **96,30 % de cobertura de línea**.
+- **74,93 % de cobertura de ramas**.
 - **7 pruebas DAO instrumentadas**, sin fallos.
 - Reporte HTML: `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
 - `jacocoTestCoverageVerification` exige al menos 80 % de línea.
@@ -758,7 +772,7 @@ cd Notix
 JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Resultado: **BUILD SUCCESSFUL**. Compila con Retrofit 2.11, OkHttp 4.12, Gson y el permiso `INTERNET`. La suite actual tiene 82 pruebas JVM y 96,26 % de cobertura de línea.
+Resultado: **BUILD SUCCESSFUL**. Compila con Retrofit 2.11, OkHttp 4.12, Gson y el permiso `INTERNET`. La suite actual tiene 82 pruebas JVM y 96,30 % de cobertura de línea.
 
 El emulador local no arrancó (terminó con `SIGSEGV`), pero la integración se verificó en un **dispositivo físico** conectado por USB con `adb reverse` y ambos microservicios activos:
 
@@ -767,6 +781,7 @@ El emulador local no arrancó (terminó con `SIGSEGV`), pero la integración se 
 - Creación de `TX-2026-0043` desde la app; la API confirmó el nuevo trámite con su historial inicial.
 - Login como notario y aprobación de `TX-2026-0043` con legibilidad marcada; el backend quedó en `FINALIZADO` con historial de `NOTARIO`.
 - Eliminación de `TX-2026-0042` desde la UI: desapareció del backend y de la lista local; también se borraron sus avisos.
+- Una devolución creada desde el backend generó un aviso nuevo; al abrir Avisos, la app mostró la notificación local en el sistema y guardó el ID para no repetirla.
 - La tarjeta de feriados mostró “Inmaculada Concepción · 08/12/2026” desde Nager.Date.
 - Sin backend activo, el login local y la caché de Room siguieron funcionando; las escrituras quedaron pendientes de conexión.
 
@@ -779,7 +794,7 @@ También se ejecutó una prueba JVM temporal contra los servicios reales: login,
 Estado tras las Fases 1, 2, 3 y 4 de la EP4 (23-11-2026): flujos de la app, microservicios, integración Retrofit, API externa, DELETE desde la UI y pruebas JVM/DAO ya están implementados. Para cerrar la EP4 queda:
 
 1. Guardar el **documento adjunto** de forma persistente (hoy solo metadatos).
-2. Agregar **notificaciones del sistema**.
+2. Agregar **notificaciones en segundo plano** con WorkManager o FCM.
 3. Completar el **botón atrás** y la sesión persistente (el perfil y el logout ya están conectados).
 4. Agregar **pruebas de UI/instrumentadas**; las 82 JVM y 7 DAO no cubren la interfaz.
 5. Verificar el **APK firmado** y completar README/Trello/evidencias de entrega.

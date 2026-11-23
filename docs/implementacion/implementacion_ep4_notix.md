@@ -56,6 +56,7 @@ Este documento no reemplaza el plan: lo aterriza. El orden recomendado de lectur
 | Pruebas del backend | 11 pruebas de contexto y HTTP | `backend/*/src/test/` |
 | Retrofit app ↔ backend | Funcional: login, registro, trámites y avisos | `data/remote/`, `AuthRepository`, `TramiteRepository` |
 | Perfil y navegación inferior | Funcional: Trámites, Avisos y Perfil | `PerfilScreen.kt`, `BarraInferiorPersona.kt`, `PerfilViewModel.kt` |
+| Notificaciones locales | Funcional al sincronizar avisos nuevos | `NotificacionUtil.kt`, `MisTramitesViewModel`, `AvisosViewModel` |
 | API externa | Funcional con Nager.Date (próximo feriado) y fallback | `FeriadosRepository`, `CatalogoFormatosScreen` |
 | Sincronización Room ↔ API | Refresco al entrar a pantallas y escrituras remoto-primero | `TramiteDao`, `TramiteRepository` |
 
@@ -65,7 +66,7 @@ Este documento no reemplaza el plan: lo aterriza. El orden recomendado de lectur
 |---|---|---|
 | DELETE desde la UI | Implementado para trámites no finalizados | IE 3.1.3 cubierto |
 | Resolución de conflictos Room ↔ API | Solo refresco simple | Riesgo si se edita desde varios clientes |
-| Pruebas unitarias de la app | 82 pruebas JVM + 7 DAO, 96,26 % de línea y umbral JaCoCo de 80 % | IE 3.2.1 cubierto |
+| Pruebas unitarias de la app | 82 pruebas JVM + 7 DAO, 96,30 % de línea y umbral JaCoCo de 80 % | IE 3.2.1 cubierto |
 | Perfil y navegación inferior | Trámites, Avisos y Perfil conectados | `PerfilScreen`, `BarraInferiorPersona` |
 | APK firmado | Sin `signingConfigs` ni `.jks` | IE 3.3.1 = 0 |
 | README con 6 apartados | README existe, pero no cumple los 6 puntos EP4 | IE 3.3.2 parcial |
@@ -1367,7 +1368,7 @@ Actualizar:
 
 ## 10. Pruebas unitarias y cobertura ≥ 80 %
 
-> ✅ **Implementado el 23-11-2026:** 82 pruebas JVM con JUnit, MockK y `kotlinx-coroutines-test`; cobertura de línea 96,26 % y de ramas 75,61 %. JaCoCo genera XML/HTML y `jacocoTestCoverageVerification` exige 80 % de línea. Las refactorizaciones de esta sección se aplicaron a `LoginViewModel` y `AuthViewModel`.
+> ✅ **Implementado el 23-11-2026:** 82 pruebas JVM con JUnit, MockK y `kotlinx-coroutines-test`; cobertura de línea 96,30 % y de ramas 74,93 %. JaCoCo genera XML/HTML y `jacocoTestCoverageVerification` exige 80 % de línea. Las refactorizaciones de esta sección se aplicaron a `LoginViewModel` y `AuthViewModel`.
 
 ### 10.1 Dependencias
 
@@ -1724,7 +1725,7 @@ docs: agrega README EP4 y evidencias
 - [ ] La tarjeta del próximo feriado se muestra y tiene fallback si falla la API.
 - [ ] Logout funciona para Persona, Empresa y Notario.
 - [x] Las pruebas unitarias pasan (77).
-- [x] La cobertura de línea es ≥ 80 % (96,26 %).
+- [x] La cobertura de línea es ≥ 80 % (96,30 %).
 - [ ] El APK release está firmado y verificado.
 - [ ] El README tiene los 6 apartados.
 - [ ] Trello tiene tareas distribuidas y evidencia.
@@ -1856,10 +1857,10 @@ docs: agrega README EP4 y evidencias
 ## 18. Resumen de una página
 
 - **Lo que ya hay:** app Compose funcional, Room como caché, login/registro y trámites contra el backend, firma simulada, corrección/reenvío, legibilidad obligatoria, logout, bandeja del notario, avisos, Retrofit y API externa del próximo feriado. Además, dos microservicios Spring Boot con H2, seeders, CRUD y 11 pruebas.
-- **Lo que falta:** resolución de conflictos de sincronización, pruebas de UI/instrumentadas, verificación del APK firmado y README/Trello/evidencias.
+- **Lo que falta:** notificaciones con la app cerrada (WorkManager/FCM), resolución de conflictos de sincronización, pruebas de UI/instrumentadas, verificación del APK firmado y README/Trello/evidencias.
 - **Arquitectura actual:** app → ViewModels → repositorios → Retrofit (8081/8082) + Room caché + Retrofit Nager.Date.
 - **Backend:** implementado con dos microservicios, H2 en archivo, seeders y CRUD; genera historial y avisos.
 - **API externa:** Nager.Date `NextPublicHolidays/CL`, tarjeta del próximo feriado, fallback si falla.
-- **Pruebas:** 82 tests JVM + 7 DAO con JUnit, MockK, coroutines-test y Room; cobertura de línea 96,26 %, ramas 75,61 % y umbral JaCoCo de 80 %.
+- **Pruebas:** 82 tests JVM + 7 DAO con JUnit, MockK, coroutines-test y Room; cobertura de línea 96,30 %, ramas 74,93 % y umbral JaCoCo de 80 %.
 - **Entrega:** `.jks` + `assembleRelease` + `apksigner`, README de 6 puntos, Trello, commits de ambos, AVA grupal e individual.
 - **Riesgo principal:** que la app no compile o el backend no arranque en la defensa. Probar el flujo completo al menos dos veces antes de congelar.

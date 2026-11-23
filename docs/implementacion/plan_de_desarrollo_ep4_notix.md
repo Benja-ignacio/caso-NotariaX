@@ -106,7 +106,7 @@ Todas las opciones son públicas, gratuitas y **no requieren API Key** (cumplien
 
 ### Fase 4: Pruebas Unitarias con Cobertura ≥ 80 % (`IE 3.2.1` — 15 %)
 
-> ✅ **Implementada el 23-11-2026:** 82 pruebas JVM con JUnit, MockK y `kotlinx-coroutines-test`, más 7 pruebas DAO instrumentadas con Room; cobertura de línea **96,26 %** y umbral de 80 % verificado con JaCoCo. Se refactorizaron `LoginViewModel`/`AuthViewModel` para inyectar el repositorio. Reporte en `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
+> ✅ **Implementada el 23-11-2026:** 82 pruebas JVM con JUnit, MockK y `kotlinx-coroutines-test`, más 7 pruebas DAO instrumentadas con Room; cobertura de línea **96,30 %** y umbral de 80 % verificado con JaCoCo. Se refactorizaron `LoginViewModel`/`AuthViewModel` para inyectar el repositorio. Reporte en `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
 
 La rúbrica exige cubrir al menos el **80 % de la lógica** en módulos como `ViewModel` o `Repository` usando **JUnit, MockK o Kotest**.
 
