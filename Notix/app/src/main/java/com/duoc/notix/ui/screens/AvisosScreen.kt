@@ -59,6 +59,7 @@ import com.duoc.notix.viewmodel.AvisosViewModel
 fun AvisosScreen(
     usuarioId: String,
     onVolver: () -> Unit,
+    onPerfil: () -> Unit = {},
     onCerrarSesion: () -> Unit = {},
     vm: AvisosViewModel = viewModel(
         key = usuarioId,
@@ -141,11 +142,10 @@ fun AvisosScreen(
         },
         bottomBar = {
             BarraInferiorPersona(
-                seleccionado = 2,
-                onInicio = onVolver,
+                seleccionado = 1,
                 onTramites = onVolver,
                 onAvisos = {},
-                onPerfil = {}
+                onPerfil = onPerfil
             )
         }
     ) { padding ->

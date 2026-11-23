@@ -19,6 +19,7 @@ import com.duoc.notix.ui.screens.CrearCuentaScreen
 import com.duoc.notix.ui.screens.CrearTramiteScreen
 import com.duoc.notix.ui.screens.LoginScreen
 import com.duoc.notix.ui.screens.MisTramitesScreen
+import com.duoc.notix.ui.screens.PerfilScreen
 import com.duoc.notix.ui.screens.WelcomeScreen
 import com.duoc.notix.ui.theme.NotixTheme
 
@@ -30,7 +31,8 @@ enum class Pantalla {
     CatalogoFormatos,
     CrearTramite,
     BandejaNotario,
-    Avisos
+    Avisos,
+    Perfil
 }
 
 class MainActivity : ComponentActivity() {
@@ -86,6 +88,7 @@ class MainActivity : ComponentActivity() {
                         onNuevoTramite = { pantallaActual = Pantalla.CatalogoFormatos },
                         onVerTramite = { id -> /* Detalle modal en MisTramitesScreen */ },
                         onAvisos = { pantallaActual = Pantalla.Avisos },
+                        onPerfil = { pantallaActual = Pantalla.Perfil },
                         onCerrarSesion = cerrarSesion
                     )
                     Pantalla.CatalogoFormatos -> CatalogoFormatosScreen(
@@ -114,6 +117,13 @@ class MainActivity : ComponentActivity() {
                     Pantalla.Avisos -> AvisosScreen(
                         usuarioId = usuarioId,
                         onVolver = { pantallaActual = Pantalla.MisTramites },
+                        onPerfil = { pantallaActual = Pantalla.Perfil },
+                        onCerrarSesion = cerrarSesion
+                    )
+                    Pantalla.Perfil -> PerfilScreen(
+                        usuarioId = usuarioId,
+                        onVolver = { pantallaActual = Pantalla.MisTramites },
+                        onAvisos = { pantallaActual = Pantalla.Avisos },
                         onCerrarSesion = cerrarSesion
                     )
                 }

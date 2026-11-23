@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.duoc.notix.data.local.NotixDatabase
 import com.duoc.notix.data.model.Aviso
+import com.duoc.notix.data.remote.TramitesApiProvider
 import com.duoc.notix.repository.TramiteRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +22,12 @@ class AvisosViewModel(
     val avisos: StateFlow<List<Aviso>> = repo.observarAvisos(usuarioId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    init {
+        viewModelScope.launch {
+            runCatching { repo.refrescarAvisos(usuarioId) }
+        }
+    }
+
     fun marcarComoLeido(avisoId: String) {
         viewModelScope.launch {
             repo.marcarAvisoLeido(avisoId)
@@ -32,7 +39,12 @@ class AvisosViewModel(
             initializer {
                 val db = NotixDatabase.getDatabase(context.applicationContext)
                 AvisosViewModel(
-                    TramiteRepository(db.tramiteDao(), db.avisoDao(), db.usuarioDao()),
+                    TramiteRepository(
+                        db.tramiteDao(),
+                        db.avisoDao(),
+                        db.usuarioDao(),
+                        TramitesApiProvider.api
+                    ),
                     usuarioId
                 )
             }

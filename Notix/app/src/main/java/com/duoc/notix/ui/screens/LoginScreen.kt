@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -49,7 +50,9 @@ import com.duoc.notix.viewmodel.LoginViewModel
 fun LoginScreen(
     onLoginSuccess: (Usuario) -> Unit,
     onCreateAccount: () -> Unit,
-    vm: LoginViewModel = viewModel()
+    vm: LoginViewModel = viewModel(
+        factory = LoginViewModel.factory(LocalContext.current)
+    )
 ) {
     var perfil by remember { mutableStateOf(TipoCuenta.PERSONA) }
     var email by remember { mutableStateOf("") }

@@ -15,6 +15,7 @@ import com.duoc.notix.data.model.EstadoDocumento
 import com.duoc.notix.data.model.EstadoTramite
 import com.duoc.notix.data.model.TipoCuenta
 import com.duoc.notix.data.model.Tramite
+import com.duoc.notix.data.remote.TramitesApiProvider
 import com.duoc.notix.data.validation.RutValidator
 import com.duoc.notix.repository.TramiteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,10 +47,17 @@ data class MisTramitesUiState(
 
 class MisTramitesViewModel(
     private val repo: TramiteRepository,
-    usuarioId: String
+    private val usuarioId: String
 ) : ViewModel() {
 
     private val filtro = MutableStateFlow(FiltroTramites.TODOS)
+
+    init {
+        viewModelScope.launch {
+            runCatching { repo.refrescarMisTramites(usuarioId) }
+            runCatching { repo.refrescarAvisos(usuarioId) }
+        }
+    }
 
     var errorOperacion by mutableStateOf<String?>(null)
         private set
@@ -152,9 +160,31 @@ class MisTramitesViewModel(
                     nuevoDocumento = nuevoDocumento,
                     comentario = comentario
                 )
+                runCatching { repo.refrescarAvisos(tramite.solicitanteId) }
                 onExito()
             } catch (e: Exception) {
                 errorOperacion = e.localizedMessage ?: "No se pudo reenviar el trámite."
+            } finally {
+                operacionEnCurso = false
+            }
+        }
+    }
+
+    fun eliminarTramite(tramite: Tramite, onExito: () -> Unit) {
+        if (operacionEnCurso) return
+        if (tramite.estado == EstadoTramite.FINALIZADO) {
+            errorOperacion = "No se puede eliminar un trámite finalizado."
+            return
+        }
+
+        viewModelScope.launch {
+            operacionEnCurso = true
+            errorOperacion = null
+            try {
+                repo.eliminarTramite(tramite)
+                onExito()
+            } catch (e: Exception) {
+                errorOperacion = e.localizedMessage ?: "No se pudo eliminar el trámite."
             } finally {
                 operacionEnCurso = false
             }
@@ -166,7 +196,12 @@ class MisTramitesViewModel(
             initializer {
                 val db = NotixDatabase.getDatabase(context.applicationContext)
                 MisTramitesViewModel(
-                    TramiteRepository(db.tramiteDao(), db.avisoDao(), db.usuarioDao()),
+                    TramiteRepository(
+                        db.tramiteDao(),
+                        db.avisoDao(),
+                        db.usuarioDao(),
+                        TramitesApiProvider.api
+                    ),
                     usuarioId
                 )
             }

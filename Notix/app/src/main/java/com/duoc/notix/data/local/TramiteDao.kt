@@ -58,8 +58,40 @@ interface TramiteDao {
     @Query("DELETE FROM documentos WHERE tramiteId = :tramiteId")
     suspend fun deleteDocumentosDeTramite(tramiteId: String)
 
+    @Query("DELETE FROM historial_eventos WHERE tramiteId = :tramiteId")
+    suspend fun deleteHistorialDeTramite(tramiteId: String)
+
+    @Query("DELETE FROM avisos WHERE tramiteId = :tramiteId")
+    suspend fun deleteAvisosDeTramite(tramiteId: String)
+
+    @Query("DELETE FROM tramites WHERE id = :tramiteId")
+    suspend fun deleteTramite(tramiteId: String)
+
+    @Transaction
+    suspend fun eliminarTramiteLocal(tramiteId: String) {
+        deleteAvisosDeTramite(tramiteId)
+        deleteTramite(tramiteId)
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAvisoTransaccional(aviso: AvisoEntity)
+
+    /**
+     * Guarda un trámite recibido del backend reemplazando sus documentos e
+     * historial locales para evitar duplicados en cada sincronización.
+     */
+    @Transaction
+    suspend fun upsertTramiteRemoto(
+        tramite: TramiteEntity,
+        documentos: List<DocumentoEntity>,
+        historial: List<EventoHistorialEntity>
+    ) {
+        insertTramite(tramite)
+        deleteDocumentosDeTramite(tramite.id)
+        insertDocumentos(documentos)
+        deleteHistorialDeTramite(tramite.id)
+        insertHistorial(historial)
+    }
 
     @Transaction
     suspend fun actualizarEstadoCompleto(

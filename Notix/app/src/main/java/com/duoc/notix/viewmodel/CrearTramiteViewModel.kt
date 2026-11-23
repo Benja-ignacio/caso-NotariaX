@@ -13,14 +13,13 @@ import com.duoc.notix.data.model.Antecedentes
 import com.duoc.notix.data.model.Documento
 import com.duoc.notix.data.model.EstadoDocumento
 import com.duoc.notix.data.model.EstadoTramite
-import com.duoc.notix.data.model.EventoHistorial
 import com.duoc.notix.data.model.FormatoTramite
 import com.duoc.notix.data.model.TipoCuenta
 import com.duoc.notix.data.model.Tramite
 import com.duoc.notix.data.model.Usuario
+import com.duoc.notix.data.remote.TramitesApiProvider
 import com.duoc.notix.data.validation.RutValidator
 import com.duoc.notix.repository.TramiteRepository
-import com.duoc.notix.util.fechaHoraActual
 import kotlinx.coroutines.launch
 
 data class CrearTramiteUiState(
@@ -147,10 +146,10 @@ class CrearTramiteViewModel(
         viewModelScope.launch {
             uiState = uiState.copy(guardando = true, errorGeneral = null)
             try {
-                val nuevoId = "TX-2026-${(1000..9999).random()}"
                 val docNombre = documentoAdjuntoNombre ?: "${formato.nombre.lowercase().replace(" ", "_")}_solicitud.pdf"
                 val nuevoTramite = Tramite(
-                    id = nuevoId,
+                    // El backend asigna el ID definitivo (TX-2026-XXXX).
+                    id = "",
                     formato = formato,
                     solicitanteId = usuarioActual.id,
                     solicitanteNombre = usuarioActual.nombreCompleto,
@@ -171,26 +170,12 @@ class CrearTramiteViewModel(
                         correoContacto = correo.trim(),
                         comuna = comuna.trim()
                     ),
-                    historial = listOf(
-                        EventoHistorial(
-                            descripcion = "Trámite ingresado correctamente",
-                            fechaHora = fechaHoraActual(),
-                            rol = usuarioActual.tipoCuenta
-                        )
-                    )
+                    historial = emptyList()
                 )
 
+                // El backend genera el ID, el historial inicial y el aviso.
                 repo.crearTramite(nuevoTramite)
-
-                val avisoIngreso = com.duoc.notix.data.model.Aviso(
-                    id = "AVS-${System.currentTimeMillis().toString().takeLast(6)}",
-                    destinatarioId = usuarioActual.id,
-                    tramiteId = nuevoId,
-                    mensaje = "Tu trámite $nuevoId (${formato.nombre}) fue enviado al notario con éxito.",
-                    fechaHora = fechaHoraActual(),
-                    leido = false
-                )
-                repo.crearAviso(avisoIngreso)
+                runCatching { repo.refrescarAvisos(usuarioActual.id) }
 
                 uiState = uiState.copy(guardando = false, guardadoExitoso = true)
                 onExito()
@@ -208,7 +193,12 @@ class CrearTramiteViewModel(
             initializer {
                 val db = NotixDatabase.getDatabase(context.applicationContext)
                 CrearTramiteViewModel(
-                    TramiteRepository(db.tramiteDao(), db.avisoDao(), db.usuarioDao()),
+                    TramiteRepository(
+                        db.tramiteDao(),
+                        db.avisoDao(),
+                        db.usuarioDao(),
+                        TramitesApiProvider.api
+                    ),
                     usuarioId,
                     formato
                 )

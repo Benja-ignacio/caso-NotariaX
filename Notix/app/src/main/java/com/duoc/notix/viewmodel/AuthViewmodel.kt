@@ -1,21 +1,24 @@
 package com.duoc.notix.viewmodel
 
-import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.duoc.notix.data.local.NotixDatabase
 import com.duoc.notix.data.model.*
+import com.duoc.notix.data.remote.UsuariosApiProvider
 import com.duoc.notix.data.repository.AuthRepository
 import com.duoc.notix.data.repository.AuthResult
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-class AuthViewModel(app: Application) : AndroidViewModel(app) {
-
-    private val repo = AuthRepository(NotixDatabase.getDatabase(app).usuarioDao())
+class AuthViewModel(
+    private val repo: AuthRepository
+) : ViewModel() {
 
     var errorRegistro by mutableStateOf<String?>(null)
         private set
@@ -44,6 +47,17 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                 id, tipo, g("nombre"), g("correo"), pass, g("run"), g("doc"), g("telefono"), g("notaria_comuna"),
                 numeroNotaria = g("notaria_n").toIntOrNull()
             )
+        }
+    }
+
+    companion object {
+        fun factory(context: Context) = viewModelFactory {
+            initializer {
+                val db = NotixDatabase.getDatabase(context.applicationContext)
+                AuthViewModel(
+                    AuthRepository(db.usuarioDao(), UsuariosApiProvider.api)
+                )
+            }
         }
     }
 }

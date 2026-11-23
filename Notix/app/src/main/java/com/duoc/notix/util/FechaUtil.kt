@@ -12,6 +12,38 @@ fun fechaHoraActual(): String {
     return sdf.format(Date())
 }
 
+/**
+ * Convierte una fecha ISO del backend (`2026-11-23T15:11:23.123`) al formato
+ * visual de la app (`23/11/2026 15:11`). Si no se puede interpretar, devuelve
+ * el texto original para no perder información.
+ */
+fun fechaIsoAApp(iso: String?): String {
+    if (iso.isNullOrBlank()) return ""
+    val normalizada = iso.trim().substringBefore('.').removeSuffix("Z")
+    val patrones = listOf("yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm")
+    for (patron in patrones) {
+        val fecha = runCatching {
+            SimpleDateFormat(patron, Locale.getDefault()).parse(normalizada)
+        }.getOrNull()
+        if (fecha != null) {
+            return SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(fecha)
+        }
+    }
+    return iso
+}
+
+/** Convierte una fecha ISO sin hora (`2026-12-08`) a `08/12/2026`. */
+fun fechaDiaAApp(iso: String?): String {
+    if (iso.isNullOrBlank()) return ""
+    val normalizada = iso.trim().substringBefore('T')
+    val fecha = runCatching {
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(normalizada)
+    }.getOrNull()
+    return fecha?.let {
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it)
+    } ?: iso
+}
+
 /** "12/10/2026 10:00" -> "12 oct 2026". Si el formato no calza, devuelve el texto tal cual. */
 fun fechaCorta(fechaHora: String?): String {
     if (fechaHora == null) return ""

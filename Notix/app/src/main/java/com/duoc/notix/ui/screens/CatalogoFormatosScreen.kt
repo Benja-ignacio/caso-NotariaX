@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,16 +34,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.duoc.notix.data.model.FormatoTramite
 import com.duoc.notix.data.model.catalogoFormatos
 import com.duoc.notix.ui.theme.NotixColors
+import com.duoc.notix.viewmodel.FeriadoUiState
+import com.duoc.notix.viewmodel.FeriadosViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatalogoFormatosScreen(
     onSeleccionarFormato: (FormatoTramite) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    vmFeriados: FeriadosViewModel = viewModel()
 ) {
+    val feriado = vmFeriados.uiState
+
     Scaffold(
         containerColor = NotixColors.Fondo,
         topBar = {
@@ -93,11 +100,78 @@ fun CatalogoFormatosScreen(
                 }
             }
 
+            item(key = "feriados") {
+                FeriadoCard(feriado)
+            }
+
             items(catalogoFormatos, key = { it.id }) { formato ->
                 FormatoItemCard(
                     formato = formato,
                     onClick = { onSeleccionarFormato(formato) }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeriadoCard(state: FeriadoUiState) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, NotixColors.Borde),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Outlined.Info,
+                contentDescription = null,
+                tint = NotixColors.Brand
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Feriados de referencia",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NotixColors.Tinta
+                )
+                Spacer(Modifier.height(2.dp))
+                when {
+                    state.cargando -> Text(
+                        "Consultando el próximo feriado…",
+                        fontSize = 12.sp,
+                        color = NotixColors.Gris
+                    )
+
+                    state.nombre != null -> {
+                        val detalle = if (state.fecha.isNullOrBlank()) {
+                            state.nombre.orEmpty()
+                        } else {
+                            "${state.nombre} · ${state.fecha}"
+                        }
+                        Text(
+                            detalle,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NotixColors.Tinta
+                        )
+                        Text(
+                            "Datos de Nager.Date. Referencia para plazos en días hábiles.",
+                            fontSize = 11.sp,
+                            color = NotixColors.Gris
+                        )
+                    }
+
+                    else -> Text(
+                        "Feriados no disponibles. Puedes continuar con tu trámite.",
+                        fontSize = 12.sp,
+                        color = NotixColors.Gris
+                    )
+                }
             }
         }
     }

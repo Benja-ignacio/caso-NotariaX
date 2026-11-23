@@ -2,7 +2,6 @@ package com.duoc.notix.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
@@ -20,13 +19,11 @@ private data class ItemBarra(val etiqueta: String, val icono: ImageVector, val o
 @Composable
 fun BarraInferiorPersona(
     seleccionado: Int,
-    onInicio: () -> Unit,
     onTramites: () -> Unit,
     onAvisos: () -> Unit,
     onPerfil: () -> Unit
 ) {
     val items = listOf(
-        ItemBarra("Inicio", Icons.Outlined.Home, onInicio),
         ItemBarra("Trámites", Icons.Outlined.Description, onTramites),
         ItemBarra("Avisos", Icons.Outlined.Notifications, onAvisos),
         ItemBarra("Perfil", Icons.Outlined.Person, onPerfil)

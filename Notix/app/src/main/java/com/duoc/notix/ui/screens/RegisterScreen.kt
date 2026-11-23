@@ -197,7 +197,9 @@ fun CrearCuentaScreen(
     onVolver: () -> Unit = {},
     onIngresar: () -> Unit = {},
     onRegistrado: (Usuario) -> Unit = {},
-    vm: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    vm: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = AuthViewModel.factory(androidx.compose.ui.platform.LocalContext.current)
+    )
 ) {
     var tipo by rememberSaveable { mutableStateOf(TipoCuenta.PERSONA) }
     var valores by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }

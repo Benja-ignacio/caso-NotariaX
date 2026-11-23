@@ -1,29 +1,38 @@
 package com.duoc.notix.repository
 
 import com.duoc.notix.data.local.AvisoDao
-import com.duoc.notix.data.local.AvisoEntity
-import com.duoc.notix.data.local.EventoHistorialEntity
 import com.duoc.notix.data.local.TramiteDao
 import com.duoc.notix.data.local.UsuarioDao
 import com.duoc.notix.data.local.toDomain
 import com.duoc.notix.data.local.toEntity
 import com.duoc.notix.data.local.toEntities
 import com.duoc.notix.data.model.Antecedentes
+import com.duoc.notix.data.model.Aviso
 import com.duoc.notix.data.model.Documento
 import com.duoc.notix.data.model.EstadoDocumento
 import com.duoc.notix.data.model.EstadoTramite
 import com.duoc.notix.data.model.TipoCuenta
 import com.duoc.notix.data.model.Tramite
 import com.duoc.notix.data.model.Usuario
-import com.duoc.notix.util.fechaHoraActual
+import com.duoc.notix.data.remote.ApiErrors
+import com.duoc.notix.data.remote.TramitesApiProvider
+import com.duoc.notix.data.remote.api.TramitesApi
+import com.duoc.notix.data.remote.apiCall
+import com.duoc.notix.data.remote.dto.MarcarLeidoRequestDto
+import com.duoc.notix.data.remote.toCambioEstadoRequest
+import com.duoc.notix.data.remote.toCrearRequest
+import com.duoc.notix.data.remote.toDomain
+import com.duoc.notix.data.remote.toReenvioRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import retrofit2.HttpException
 
 class TramiteRepository(
     private val tramiteDao: TramiteDao,
     private val avisoDao: AvisoDao,
-    private val usuarioDao: UsuarioDao
+    private val usuarioDao: UsuarioDao,
+    private val api: TramitesApi = TramitesApiProvider.api
 ) {
     fun observarMisTramites(usuarioId: String): Flow<List<Tramite>> =
         tramiteDao.getTramitesPorSolicitante(usuarioId).map { lista -> lista.map { it.toDomain() } }
@@ -31,16 +40,8 @@ class TramiteRepository(
     fun observarAvisosSinLeer(usuarioId: String): Flow<Boolean> =
         avisoDao.getAvisosPorDestinatario(usuarioId).map { avisos -> avisos.any { !it.leido } }
 
-    fun observarAvisos(usuarioId: String): Flow<List<com.duoc.notix.data.model.Aviso>> =
+    fun observarAvisos(usuarioId: String): Flow<List<Aviso>> =
         avisoDao.getAvisosPorDestinatario(usuarioId).map { lista -> lista.map { it.toDomain() } }
-
-    suspend fun marcarAvisoLeido(avisoId: String) {
-        avisoDao.marcarAvisoLeido(avisoId)
-    }
-
-    suspend fun crearAviso(aviso: com.duoc.notix.data.model.Aviso) {
-        avisoDao.insertAviso(aviso.toEntity())
-    }
 
     fun observarUsuario(usuarioId: String): Flow<Usuario?> =
         usuarioDao.getUsuarioPorId(usuarioId).map { it?.toDomain() }
@@ -48,22 +49,51 @@ class TramiteRepository(
     suspend fun obtenerUsuario(usuarioId: String): Usuario? =
         usuarioDao.getUsuarioPorId(usuarioId).firstOrNull()?.toDomain()
 
-    suspend fun crearTramite(tramite: Tramite) {
-        val (te, de, he) = tramite.toEntities()
-        tramiteDao.insertTramiteCompleto(te, de, he)
-    }
-
     fun observarTodosLosTramites(): Flow<List<Tramite>> =
         tramiteDao.getTodosLosTramites().map { lista -> lista.map { it.toDomain() } }
 
+    /**
+     * Trae los trámites del solicitante desde el backend y actualiza Room.
+     * Si el backend falla, la excepción queda en el ViewModel y la UI sigue
+     * mostrando la última copia local.
+     */
+    suspend fun refrescarMisTramites(usuarioId: String) {
+        val remotos = apiCall { api.porSolicitante(usuarioId) }
+        remotos.forEach { guardarRemoto(it.toDomain()) }
+    }
+
+    suspend fun refrescarTodosLosTramites() {
+        val remotos = apiCall { api.todos() }
+        remotos.forEach { guardarRemoto(it.toDomain()) }
+    }
+
+    suspend fun refrescarAvisos(usuarioId: String) {
+        val remotos = apiCall { api.avisos(usuarioId) }
+        remotos.forEach { avisoDao.insertAviso(it.toDomain().toEntity()) }
+    }
+
+    suspend fun marcarAvisoLeido(avisoId: String) {
+        // Se intenta sincronizar primero; si no hay red, el cambio local se
+        // conserva para que la UI siga respondiendo durante la demo.
+        runCatching {
+            apiCall { api.marcarLeido(avisoId, MarcarLeidoRequestDto()) }
+        }
+        avisoDao.marcarAvisoLeido(avisoId)
+    }
+
+    suspend fun crearTramite(tramite: Tramite): Tramite {
+        val creado = apiCall { api.crear(tramite.toCrearRequest()) }.toDomain()
+        guardarRemoto(creado)
+        return creado
+    }
+
     suspend fun actualizarEstadoTramite(
         tramite: Tramite,
-        nuevoEstado: com.duoc.notix.data.model.EstadoTramite,
+        nuevoEstado: EstadoTramite,
         observacion: String? = null,
         legibilidadConfirmada: Boolean = false,
-        descripcionHistorial: String,
-        rolHistorial: com.duoc.notix.data.model.TipoCuenta,
-        mensajeAviso: String? = null
+        rolHistorial: TipoCuenta,
+        comentario: String? = null
     ) {
         check(tramite.estado == EstadoTramite.ENVIADO) {
             "Solo se pueden revisar trámites en estado ENVIADO."
@@ -78,37 +108,24 @@ class TramiteRepository(
             EstadoTramite.ENVIADO -> error("Transición de estado no permitida.")
         }
 
-        val tramiteActualizado = tramite.copy(
-            estado = nuevoEstado,
-            observacion = if (nuevoEstado == EstadoTramite.DEVUELTO) observacion else null,
-            legibilidadConfirmada = nuevoEstado == EstadoTramite.FINALIZADO && legibilidadConfirmada
-        )
-        val (te, _, _) = tramiteActualizado.toEntities()
-
-        val nuevoEvento = EventoHistorialEntity(
-            tramiteId = tramite.id,
-            descripcion = descripcionHistorial,
-            fechaHora = fechaHoraActual(),
-            rol = rolHistorial
-        )
-
-        val aviso = mensajeAviso?.let {
-            AvisoEntity(
-                id = "AVS-${System.currentTimeMillis().toString().takeLast(6)}",
-                destinatarioId = tramite.solicitanteId,
-                tramiteId = tramite.id,
-                mensaje = it,
-                fechaHora = fechaHoraActual(),
-                leido = false
+        val actualizado = apiCall {
+            api.cambiarEstado(
+                tramite.id,
+                tramite.toCambioEstadoRequest(
+                    nuevoEstado = nuevoEstado,
+                    observacion = observacion,
+                    legibilidadConfirmada = legibilidadConfirmada,
+                    rol = rolHistorial,
+                    comentario = comentario
+                )
             )
-        }
-
-        tramiteDao.actualizarEstadoCompleto(te, nuevoEvento, aviso)
+        }.toDomain()
+        guardarRemoto(actualizado)
     }
 
     /**
-     * Corrige y reenvía un trámite DEVUELTO. El notario deberá revisarlo nuevamente.
-     * Los documentos observados deben reemplazarse por uno nuevo.
+     * Corrige y reenvía un trámite DEVUELTO. El backend valida la transición,
+     * reemplaza documentos y genera el historial y el aviso.
      */
     suspend fun reenviarTramite(
         tramite: Tramite,
@@ -124,46 +141,45 @@ class TramiteRepository(
         require(antecedentes.correoContacto.isNotBlank()) { "El correo es obligatorio." }
         require(antecedentes.comuna.isNotBlank()) { "La comuna es obligatoria." }
 
-        val documentosObservados = tramite.documentos.filter { it.estado == EstadoDocumento.OBSERVADO }
-        check(!(documentosObservados.isNotEmpty() && nuevoDocumento == null)) {
+        val observados = tramite.documentos.filter { it.estado == EstadoDocumento.OBSERVADO }
+        check(!(observados.isNotEmpty() && nuevoDocumento == null)) {
             "Adjunta un nuevo documento para reemplazar el observado."
         }
 
-        val documentos = when {
-            nuevoDocumento != null ->
-                tramite.documentos.filter { it.estado != EstadoDocumento.OBSERVADO } + nuevoDocumento
-            documentosObservados.isNotEmpty() ->
-                tramite.documentos.filter { it.estado != EstadoDocumento.OBSERVADO } +
-                    documentosObservados.map { it.copy(estado = EstadoDocumento.ACEPTADO) }
-            else -> tramite.documentos
+        val documentos = buildList {
+            addAll(tramite.documentos.filter { it.estado != EstadoDocumento.OBSERVADO })
+            if (nuevoDocumento != null) add(nuevoDocumento)
+        }
+        check(documentos.isNotEmpty()) {
+            "El trámite debe conservar al menos un documento."
         }
 
-        val tramiteActualizado = tramite.copy(
-            estado = EstadoTramite.ENVIADO,
-            observacion = null,
-            legibilidadConfirmada = false,
-            antecedentes = antecedentes,
-            documentos = documentos
-        )
-        val (te, de, _) = tramiteActualizado.toEntities()
+        val actualizado = apiCall {
+            api.reenviar(
+                tramite.id,
+                tramite.toReenvioRequest(
+                    antecedentes = antecedentes,
+                    documentos = documentos,
+                    comentario = comentario
+                )
+            )
+        }.toDomain()
+        guardarRemoto(actualizado)
+    }
 
-        val detalleComentario = comentario.trim().ifBlank { "sin comentario adicional" }
-        val nuevoEvento = EventoHistorialEntity(
-            tramiteId = tramite.id,
-            descripcion = "Corregido y reenviado por el solicitante: $detalleComentario",
-            fechaHora = fechaHoraActual(),
-            rol = TipoCuenta.PERSONA
-        )
+    suspend fun eliminarTramite(tramite: Tramite) {
+        check(tramite.estado != EstadoTramite.FINALIZADO) {
+            "No se puede eliminar un trámite finalizado."
+        }
+        val response = apiCall { api.eliminar(tramite.id) }
+        if (!response.isSuccessful) {
+            throw IllegalStateException(ApiErrors.mensaje(HttpException(response)))
+        }
+        tramiteDao.eliminarTramiteLocal(tramite.id)
+    }
 
-        val aviso = AvisoEntity(
-            id = "AVS-${System.currentTimeMillis().toString().takeLast(6)}",
-            destinatarioId = tramite.solicitanteId,
-            tramiteId = tramite.id,
-            mensaje = "Tu trámite ${tramite.id} (${tramite.formato.nombre}) fue corregido y reenviado al notario.",
-            fechaHora = fechaHoraActual(),
-            leido = false
-        )
-
-        tramiteDao.reenviarTramiteCompleto(te, de, nuevoEvento, aviso)
+    private suspend fun guardarRemoto(tramite: Tramite) {
+        val (tramiteEntity, documentos, historial) = tramite.toEntities()
+        tramiteDao.upsertTramiteRemoto(tramiteEntity, documentos, historial)
     }
 }

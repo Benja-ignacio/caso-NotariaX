@@ -77,6 +77,7 @@ fun MisTramitesScreen(
     onNuevoTramite: () -> Unit = {},
     onVerTramite: (String) -> Unit = {},
     onAvisos: () -> Unit = {},
+    onPerfil: () -> Unit = {},
     onCerrarSesion: () -> Unit = {},
     vm: MisTramitesViewModel = viewModel(
         key = usuarioId,
@@ -86,6 +87,7 @@ fun MisTramitesScreen(
     val state by vm.uiState.collectAsState()
     var tramiteDetalle by remember { mutableStateOf<Tramite?>(null) }
     var tramiteACorregir by remember { mutableStateOf<Tramite?>(null) }
+    var tramiteAEliminar by remember { mutableStateOf<Tramite?>(null) }
 
     MisTramitesContent(
         state = state,
@@ -100,6 +102,7 @@ fun MisTramitesScreen(
             }
         },
         onAvisos = onAvisos,
+        onPerfil = onPerfil,
         onCerrarSesion = onCerrarSesion
     )
 
@@ -110,6 +113,11 @@ fun MisTramitesScreen(
             onCorregir = {
                 vm.limpiarErrorOperacion()
                 tramiteACorregir = tramite
+                tramiteDetalle = null
+            },
+            onEliminar = {
+                vm.limpiarErrorOperacion()
+                tramiteAEliminar = tramite
                 tramiteDetalle = null
             }
         )
@@ -137,6 +145,61 @@ fun MisTramitesScreen(
             }
         )
     }
+
+    tramiteAEliminar?.let { tramite ->
+        AlertDialog(
+            onDismissRequest = {
+                if (!vm.operacionEnCurso) {
+                    tramiteAEliminar = null
+                    vm.limpiarErrorOperacion()
+                }
+            },
+            containerColor = Color.White,
+            title = {
+                Text(
+                    "Eliminar trámite",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NotixColors.Tinta
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "¿Eliminar el trámite ${tramite.id}? Esta acción no se puede deshacer.",
+                        fontSize = 14.sp,
+                        color = NotixColors.Gris
+                    )
+                    vm.errorOperacion?.let {
+                        Text(it, fontSize = 12.sp, color = NotixColors.AlertaTexto, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        vm.eliminarTramite(tramite) { tramiteAEliminar = null }
+                    },
+                    enabled = !vm.operacionEnCurso,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC0392B))
+                ) {
+                    Text(if (vm.operacionEnCurso) "Eliminando..." else "Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        if (!vm.operacionEnCurso) {
+                            tramiteAEliminar = null
+                            vm.limpiarErrorOperacion()
+                        }
+                    }
+                ) {
+                    Text("Cancelar", color = NotixColors.Gris)
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -146,6 +209,7 @@ fun MisTramitesContent(
     onNuevoTramite: () -> Unit,
     onVerTramite: (String) -> Unit,
     onAvisos: () -> Unit,
+    onPerfil: () -> Unit,
     onCerrarSesion: () -> Unit
 ) {
     var confirmarCierreSesion by remember { mutableStateOf(false) }
@@ -193,7 +257,9 @@ fun MisTramitesContent(
         bottomBar = {
             BarraInferiorPersona(
                 seleccionado = 0,
-                onInicio = {}, onTramites = {}, onAvisos = onAvisos, onPerfil = {}
+                onTramites = {},
+                onAvisos = onAvisos,
+                onPerfil = onPerfil
             )
         }
     ) { padding ->
@@ -408,7 +474,8 @@ private fun AlertaBanner(tramite: Tramite, onClick: () -> Unit) {
 private fun DetalleClienteDialog(
     tramite: Tramite,
     onDismiss: () -> Unit,
-    onCorregir: () -> Unit
+    onCorregir: () -> Unit,
+    onEliminar: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -491,6 +558,12 @@ private fun DetalleClienteDialog(
                     Text("Historial del trámite:", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = NotixColors.Tinta)
                     tramite.historial.forEach { h ->
                         Text("• ${h.fechaHora} (${h.rol.etiqueta}): ${h.descripcion}", fontSize = 12.sp, color = NotixColors.Gris)
+                    }
+                }
+
+                if (tramite.estado != EstadoTramite.FINALIZADO) {
+                    TextButton(onClick = onEliminar) {
+                        Text("Eliminar trámite", color = Color(0xFFC0392B), fontSize = 13.sp)
                     }
                 }
             }

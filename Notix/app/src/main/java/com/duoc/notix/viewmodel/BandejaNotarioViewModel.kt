@@ -12,6 +12,7 @@ import com.duoc.notix.data.local.NotixDatabase
 import com.duoc.notix.data.model.EstadoTramite
 import com.duoc.notix.data.model.TipoCuenta
 import com.duoc.notix.data.model.Tramite
+import com.duoc.notix.data.remote.TramitesApiProvider
 import com.duoc.notix.repository.TramiteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,6 +38,12 @@ class BandejaNotarioViewModel(
 ) : ViewModel() {
 
     private val filtro = MutableStateFlow(FiltroTramites.TODOS)
+
+    init {
+        viewModelScope.launch {
+            runCatching { repo.refrescarTodosLosTramites() }
+        }
+    }
 
     var errorOperacion by mutableStateOf<String?>(null)
         private set
@@ -88,9 +95,7 @@ class BandejaNotarioViewModel(
                     tramite = tramite,
                     nuevoEstado = EstadoTramite.FINALIZADO,
                     legibilidadConfirmada = true,
-                    descripcionHistorial = "Aprobado y finalizado por el notario",
-                    rolHistorial = TipoCuenta.NOTARIO,
-                    mensajeAviso = "Tu trámite ${tramite.id} (${tramite.formato.nombre}) ha sido aprobado y finalizado por el notario."
+                    rolHistorial = TipoCuenta.NOTARIO
                 )
             } catch (e: Exception) {
                 errorOperacion = e.localizedMessage ?: "No se pudo aprobar el trámite."
@@ -114,9 +119,7 @@ class BandejaNotarioViewModel(
                     tramite = tramite,
                     nuevoEstado = EstadoTramite.DEVUELTO,
                     observacion = observacion.trim(),
-                    descripcionHistorial = "Devuelto con observaciones: ${observacion.trim()}",
-                    rolHistorial = TipoCuenta.NOTARIO,
-                    mensajeAviso = "Tu trámite ${tramite.id} (${tramite.formato.nombre}) ha sido devuelto con observaciones: ${observacion.trim()}"
+                    rolHistorial = TipoCuenta.NOTARIO
                 )
             } catch (e: Exception) {
                 errorOperacion = e.localizedMessage ?: "No se pudo devolver el trámite."
@@ -129,7 +132,12 @@ class BandejaNotarioViewModel(
             initializer {
                 val db = NotixDatabase.getDatabase(context.applicationContext)
                 BandejaNotarioViewModel(
-                    TramiteRepository(db.tramiteDao(), db.avisoDao(), db.usuarioDao()),
+                    TramiteRepository(
+                        db.tramiteDao(),
+                        db.avisoDao(),
+                        db.usuarioDao(),
+                        TramitesApiProvider.api
+                    ),
                     usuarioId
                 )
             }
