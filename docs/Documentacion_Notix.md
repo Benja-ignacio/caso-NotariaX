@@ -32,6 +32,9 @@ La app **no debe usarse para trámites notariales reales**. No integra servicios
 |---|---|
 | Proyecto Android + Jetpack Compose | ✅ Funcional |
 | Persistencia local con Room | ✅ Implementada |
+| Microservicios Spring Boot (`backend/`) | ✅ Implementados y probados por separado |
+| Integración app Android ↔ backend | ❌ Pendiente (Retrofit, Fase 3) |
+| API externa en la app | ❌ Pendiente (Fase 3) |
 | Autenticación local (login/registro) | ✅ Implementada |
 | Flujo Persona/Empresa | ✅ Implementado en su mayoría |
 | Flujo Notario | ✅ Implementado en su mayoría |
@@ -54,6 +57,10 @@ La app **no debe usarse para trámites notariales reales**. No integra servicios
 ```text
 caso-NotariaX/
 ├── README.md                      # Entrada rápida: cómo ejecutar y estado
+├── backend/                       # Microservicios Spring Boot (Fase 2 EP4)
+│   ├── pom.xml                    # Proyecto Maven padre
+│   ├── ms-usuarios/               # Puerto 8081
+│   └── ms-tramites/               # Puerto 8082
 ├── docs/
 │   ├── contexto.md                # Enunciado y alcance del caso
 │   ├── implementacion/                # Planes, pauta y estado de continuidad EP4
@@ -105,6 +112,10 @@ caso-NotariaX/
 | Java | 11 |
 | Navegación | Estado en `MainActivity` (`enum Pantalla`), sin Navigation Compose |
 | Datos | 100 % ficticios, definidos en el seeder |
+| Backend | Java 21, Spring Boot 4.2, Spring Web MVC, Spring Data JPA, Maven Wrapper |
+| Persistencia backend | H2 2.5 en archivo (`data/`) con Hibernate 7 |
+| Puertos backend | `ms-usuarios` 8081, `ms-tramites` 8082 |
+| Integración app ↔ backend | No implementada todavía |
 
 Dependencias relevantes declaradas en `Notix/gradle/libs.versions.toml`:
 
@@ -146,6 +157,25 @@ Decisiones actuales:
 - La validación de RUN vive en `data/validation/RutValidator`.
 - Algunas validaciones de formulario están en el ViewModel y otras en la pantalla de registro (deuda técnica menor).
 - La sesión se maneja con estado en memoria/`rememberSaveable` en `MainActivity`; **no hay sesión persistida**.
+
+### 5.1 Backend EP4 (Fase 2)
+
+`backend/` es un proyecto Maven independiente con dos microservicios Spring Boot:
+
+```text
+App Android (Room, sin Retrofit todavía)     backend/
+                                           ├── ms-usuarios :8081  → H2 usuarios
+                                           └── ms-tramites :8082  → H2 trámites,
+                                                                    documentos,
+                                                                    historial, avisos
+```
+
+- `ms-usuarios` expone registro, login, consulta, actualización y eliminación de usuarios. Normaliza el correo, valida RUN/documento y exige campos según Persona/Empresa/Notario.
+- `ms-tramites` expone listado general y por solicitante, detalle, creación, aprobación/devolución, reenvío, eliminación y avisos.
+- La máquina de estados es la misma de la app: `ENVIADO → FINALIZADO` exige legibilidad; `ENVIADO → DEVUELTO` exige observación; `DEVUELTO → ENVIADO` usa reenvío; `FINALIZADO` rechaza cambios y eliminación con `409`.
+- Los seeders crean los mismos usuarios demo y cuatro trámites ficticios.
+- **No hay integración con la app:** no existen Retrofit, DTO remotos, permiso `INTERNET` ni sincronización Room ↔ backend. La app sigue funcionando 100 % con Room.
+- Contratos, ejemplos `curl` y ejecución: [`backend/README.md`](../backend/README.md).
 
 ---
 
@@ -402,6 +432,21 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
 - Formato de fechas y documentos.
 - Icono/logo de la app.
 
+### 7.5 Backend Spring Boot (Fase 2)
+
+- `ms-usuarios`:
+  - `POST /api/usuarios/registro`, `POST /api/usuarios/login`, `GET /api/usuarios/{id}`.
+  - `GET`, `PUT` y `DELETE` adicionales para completar el CRUD.
+  - Respuesta sin contraseña; errores `400/401/403/404/409` con mensaje.
+- `ms-tramites`:
+  - `GET /api/tramites`, `GET /api/tramites/solicitante/{id}`, `GET /api/tramites/{id}`.
+  - `POST /api/tramites`, `PUT /api/tramites/{id}/estado`, `PUT /api/tramites/{id}/reenvio`, `DELETE /api/tramites/{id}`.
+  - `GET /api/avisos/{usuarioId}` y `PUT /api/avisos/{id}/leido`.
+  - Historial y avisos generados por el backend, no por el cliente.
+- Ambas bases H2 se crean como archivo y se reinician borrando `backend/ms-*/data/`.
+- Verificación: 11 pruebas (`./mvnw test`) y llamadas HTTP reales a los endpoints principales.
+- La app Android aún no consume estos servicios.
+
 ---
 
 ## 8. Modelo de datos de dominio
@@ -444,7 +489,7 @@ Estados:
 ### Requisitos
 
 - Android Studio reciente con soporte para AGP 9.2.1.
-- JDK 11 o superior.
+- JDK 11 o superior para la app; JDK 21 para el backend.
 - SDK Android 37 instalado.
 - Emulador o dispositivo Android 7.0+ (API 24+).
 
@@ -458,6 +503,17 @@ cd Notix
 > En este entorno `gradlew` no tenía permiso de ejecución. Si ocurre, usar `sh gradlew ...` o `chmod +x gradlew`.
 
 También se puede abrir la carpeta `Notix/` directamente en Android Studio y ejecutar la configuración `app`.
+
+### Backend
+
+```bash
+cd backend
+./mvnw test
+./mvnw spring-boot:run -pl ms-usuarios    # puerto 8081
+./mvnw spring-boot:run -pl ms-tramites    # puerto 8082
+```
+
+No requiere Maven instalado: el wrapper descarga Maven 3.10.1. Las bases H2 quedan en `backend/ms-usuarios/data/` y `backend/ms-tramites/data/`; para reiniciar la demo se detienen los servicios y se borran esas carpetas. La app Android **no necesita** el backend para funcionar en esta fase.
 
 ### Credenciales demo
 
@@ -473,6 +529,21 @@ También se puede crear una cuenta nueva desde “Crear cuenta”.
 ## 10. Pendientes y deuda técnica
 
 Ordenados por impacto para la rúbrica y el flujo principal.
+
+### Integración pendiente (Fase 3)
+
+1. **Conectar la app con el backend**
+   - Agregar Retrofit, converter y logging interceptor.
+   - Crear clientes separados para 8081 y 8082; en emulador usar `10.0.2.2`.
+   - Agregar permiso `INTERNET` y tráfico cleartext local.
+   - Definir fuente de verdad y sincronización Room ↔ API antes de reemplazar escrituras locales.
+
+2. **API externa aislada**
+   - Elegir una opción (por ejemplo Mindicador) y envolver la llamada con fallback.
+   - Mostrarla en una tarjeta sin bloquear la creación ni el envío de trámites.
+
+3. **Completar DELETE desde la app**
+   - El backend ya expone `DELETE /api/tramites/{id}`; falta la acción y confirmación en la UI.
 
 ### Alta prioridad
 
@@ -590,17 +661,41 @@ Observaciones del entorno:
 - Gradle advierte que AGP 9.2.1 fue probado hasta compileSdk 37.0 y el proyecto usa 37.1. No impide compilar, pero conviene alinear versiones.
 - Room advierte que `fallbackToDestructiveMigration()` está deprecado; la migración 2 → 3 sí está definida y conserva datos.
 
+### Backend
+
+Comando usado:
+
+```bash
+cd backend
+JAVA_HOME=/usr/lib/jvm/java-21-temurin-jdk ./mvnw test
+```
+
+Resultado: **BUILD SUCCESSFUL**, 11 pruebas ejecutadas (contexto de ambos servicios, registro, login, creación, aprobación, devolución, reenvío, eliminación y avisos), sin fallos.
+
+También se levantaron ambos JAR y se verificó con `curl`:
+
+- `GET /api/usuarios` devuelve los dos usuarios demo.
+- `POST /api/usuarios/login` devuelve `200` con credenciales correctas y `403` con tipo incorrecto.
+- `GET /api/tramites` devuelve los cuatro trámites demo.
+- `POST /api/tramites` crea `TX-2026-0043` en estado `ENVIADO`.
+- Aprobar sin legibilidad devuelve `409`; con legibilidad devuelve `200` y `FINALIZADO`.
+- `GET /api/avisos/USR-001` devuelve los avisos generados.
+
+No se probó integración con la app porque aún no existe.
+
 ---
 
 ## 13. Recomendación de siguiente etapa
 
-Estado tras la Fase 1 de la EP4 (23-11-2026): firma simulada, corrección/reenvío, legibilidad obligatoria y logout ya están implementados. Para cerrar el MVP queda:
+Estado tras las Fases 1 y 2 de la EP4 (23-11-2026): los flujos de la app y los microservicios Spring Boot ya están implementados y verificados por separado. Para cerrar la EP4 queda:
 
-1. Guardar el **documento adjunto** de forma persistente (hoy solo metadatos).
-2. Agregar **notificaciones del sistema**.
-3. Completar **navegación, perfil y botón atrás** (el logout ya está conectado).
-4. Agregar **pruebas unitarias** de validaciones, transiciones de estado y persistencia.
-5. Actualizar la guía histórica y mantener este documento al día.
+1. Integrar la app con el backend mediante **Retrofit** (Fase 3).
+2. Agregar una **API externa** visible en la UI con fallback.
+3. Guardar el **documento adjunto** de forma persistente (hoy solo metadatos).
+4. Agregar **notificaciones del sistema**.
+5. Completar **navegación, perfil y botón atrás** (el logout ya está conectado).
+6. Agregar **pruebas unitarias de la app** con cobertura medida; las pruebas actuales del backend no cuentan para la cobertura de la app.
+7. Generar el **APK firmado** y completar README/Trello/evidencias de entrega.
 
 ---
 
@@ -611,6 +706,9 @@ Estado tras la Fase 1 de la EP4 (23-11-2026): firma simulada, corrección/reenv�
 - Los documentos se representan por metadatos; no se almacena contenido real.
 - La biometría, e-token y firma avanzada son simulaciones.
 - La base de datos es la fuente de verdad de la app; los `Flow` mantienen la UI sincronizada.
+- El backend es independiente y todavía no es fuente de verdad de la app: no hay integración Retrofit.
+- El backend usa H2 en archivo para evitar depender de un motor externo en la demo.
+- Las contraseñas del backend también quedan en texto plano por el alcance académico; no es una implementación de producción.
 - El prototipo HTML se conserva como referencia, no como parte funcional de la entrega Android.
 
 ---

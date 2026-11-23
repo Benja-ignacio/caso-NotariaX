@@ -8,7 +8,7 @@
 
 ## 1. Mapa de Evolución de Arquitectura
 
-Actualmente **Notix** funciona 100 % offline con Room. Para obtener el 100 % de logro en la rúbrica de la Evaluación Parcial 4, la arquitectura debe evolucionar al siguiente esquema:
+La **app Notix** funciona 100 % offline con Room. Los microservicios ya existen en `backend/` (Fase 2), pero la app todavía no los consume. Para obtener el 100 % de logro en la rúbrica de la Evaluación Parcial 4, la arquitectura debe evolucionar al siguiente esquema:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -59,6 +59,8 @@ Antes de conectar servidores, cierra las brechas detectadas en el estado actual 
 ---
 
 ### Fase 2: Construir los Microservicios en Spring Boot (`IE 3.1.2` — 15 %)
+
+> ✅ **Implementada el 23-11-2026:** `backend/ms-usuarios` (8081) y `backend/ms-tramites` (8082) con Spring Boot 4.2, Java 21, Maven, JPA, H2 persistente, seeders, endpoints y 11 pruebas. Verificado con `./mvnw test` y llamadas HTTP locales. La app Android todavía no consume el backend; eso corresponde a la Fase 3. Guía: `backend/README.md`.
 
 Migra las 5 entidades actuales de `NotixDatabase` hacia Spring Boot con una base de datos activa (PostgreSQL, MySQL o H2 persistente en archivo). Dividir el backend en **2 microservicios** cubre el requerimiento en plural de la pauta:
 

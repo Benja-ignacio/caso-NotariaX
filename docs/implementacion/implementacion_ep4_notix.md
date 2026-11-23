@@ -51,13 +51,15 @@ Este documento no reemplaza el plan: lo aterriza. El orden recomendado de lectur
 | Detalle del trámite para persona | Funcional como diálogo | `MisTramitesScreen.kt` |
 | Logout Persona, Empresa y Notario | Funcional | `MainActivity.kt`, `MisTramitesScreen.kt`, `AvisosScreen.kt` |
 | Selector nativo de archivos | Funcional, solo metadatos | `CrearTramiteScreen.kt` |
+| `ms-usuarios` Spring Boot | Funcional en 8081, H2, CRUD y login | `backend/ms-usuarios/` |
+| `ms-tramites` Spring Boot | Funcional en 8082, H2, trámites/avisos | `backend/ms-tramites/` |
+| Pruebas del backend | 11 pruebas de contexto y HTTP | `backend/*/src/test/` |
 
 ### 1.2 Brechas frente a la EP4
 
 | Brecha | Estado actual | Impacto |
 |---|---|---|
-| Microservicios Spring Boot | No existen | IE 3.1.2 = 0 |
-| Retrofit contra backend | No implementado | IE 3.1.3 = 0 |
+| Integración app ↔ microservicios | Backend implementado, pero sin Retrofit ni consumo desde la app | IE 3.1.3 = 0 |
 | API externa | No implementada | IE 3.1.4 = 0 |
 | DELETE desde la UI | No existe | CRUD incompleto en IE 3.1.3 |
 | Pruebas unitarias | Solo `ExampleUnitTest` | IE 3.2.1 = 0 |
@@ -176,60 +178,53 @@ La API externa se encapsula en su propio `RetrofitClient`, su propio repositorio
 
 ## 4. Backend: microservicios Spring Boot
 
-### 4.1 Estructura recomendada del repositorio
+> ✅ **Implementado el 23-11-2026.** La implementación real usa **Spring Boot 4.2.0**, **Java 21**, **Maven Wrapper 3.3.4**, **H2 2.5 en archivo** y paquetes `web/` para controladores y manejo de errores. La estructura y dependencias de esta sección se actualizaron para reflejar el código existente. Guía de ejecución y contratos: `backend/README.md`.
+
+### 4.1 Estructura real del repositorio
 
 ```text
 caso-NotariaX/
 ├── backend/
+│   ├── pom.xml                         # padre Maven con módulos
+│   ├── mvnw / mvnw.cmd
 │   ├── ms-usuarios/
 │   │   ├── pom.xml
 │   │   └── src/main/java/com/duoc/notix/usuarios/
 │   │       ├── MsUsuariosApplication.java
-│   │       ├── controller/UsuarioController.java
-│   │       ├── service/UsuarioService.java
+│   │       ├── web/UsuarioController.java
+│   │       ├── web/ApiException.java, ApiError.java, ApiExceptionHandler.java
+│   │       ├── service/UsuarioService.java, RutValidator.java
 │   │       ├── repository/UsuarioRepository.java
-│   │       ├── model/Usuario.java
+│   │       ├── model/Usuario.java, TipoCuenta.java
 │   │       ├── dto/...
-│   │       ├── config/DataSeeder.java
-│   │       └── error/GlobalExceptionHandler.java
+│   │       └── config/DataSeeder.java
 │   └── ms-tramites/
 │       ├── pom.xml
 │       └── src/main/java/com/duoc/notix/tramites/
 │           ├── MsTramitesApplication.java
-│           ├── controller/...
-│           ├── service/TramiteService.java
-│           ├── repository/...
+│           ├── web/TramiteController.java, AvisoController.java
+│           ├── web/ApiException.java, ApiError.java, ApiExceptionHandler.java
+│           ├── service/TramiteService.java, AvisoService.java
+│           ├── repository/TramiteRepository.java, AvisoRepository.java
 │           ├── model/Tramite.java, Documento.java, EventoHistorial.java, Aviso.java
 │           ├── dto/...
-│           ├── config/DataSeeder.java
-│           └── error/GlobalExceptionHandler.java
+│           └── config/DataSeeder.java
 ├── docs/
 ├── Notix/
 └── README.md
 ```
 
-Cada microservicio es un proyecto Gradle/Maven independiente. Se pueden ejecutar por separado y tener su propia base H2.
+Cada microservicio tiene su propia base H2 y se ejecuta por separado. La app Android aún no consume estos servicios.
 
-### 4.2 Dependencias mínimas (Maven)
+### 4.2 Dependencias reales (Maven)
 
-Para ambos `pom.xml`:
+El `backend/pom.xml` hereda de `spring-boot-starter-parent:4.2.0` y define los módulos. Cada módulo declara:
 
 ```xml
-<parent>
-  <groupId>org.springframework.boot</groupId>
-  <artifactId>spring-boot-starter-parent</artifactId>
-  <version>3.5.6</version>
-  <relativePath/>
-</parent>
-
-<properties>
-  <java.version>21</java.version>
-</properties>
-
 <dependencies>
   <dependency>
     <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
+    <artifactId>spring-boot-h2console</artifactId>
   </dependency>
   <dependency>
     <groupId>org.springframework.boot</groupId>
@@ -240,19 +235,34 @@ Para ambos `pom.xml`:
     <artifactId>spring-boot-starter-validation</artifactId>
   </dependency>
   <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-webmvc</artifactId>
+  </dependency>
+  <dependency>
     <groupId>com.h2database</groupId>
     <artifactId>h2</artifactId>
     <scope>runtime</scope>
   </dependency>
+  <!-- starters de prueba por módulo -->
   <dependency>
     <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-test</artifactId>
+    <artifactId>spring-boot-starter-data-jpa-test</artifactId>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation-test</artifactId>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-webmvc-test</artifactId>
     <scope>test</scope>
   </dependency>
 </dependencies>
 ```
 
-> Si el equipo prefiere Gradle, usar el wrapper de Spring Initializr. Lo importante es que cada microservicio tenga su propio `pom.xml` o `build.gradle` y se pueda ejecutar con un comando claro en el README.
+> Spring Boot 4 renombró el starter web a `spring-boot-starter-webmvc` y separó los starters de prueba por módulo. No reemplazarlos por los nombres de Boot 3 sin verificar compatibilidad.
 
 ### 4.3 `ms-usuarios` — puerto 8081
 
@@ -1839,10 +1849,11 @@ docs: agrega README EP4 y evidencias
 
 ## 18. Resumen de una página
 
-- **Lo que ya hay:** app Compose funcional, Room, login local, creación de trámites, bandeja del notario, avisos.
-- **Lo que falta:** backend Spring Boot, Retrofit, API externa, firma simulada, reenvío, legibilidad obligatoria, logout Persona/Empresa, DELETE, pruebas, APK firmado, README/Trello.
-- **Arquitectura:** app → ViewModels → repositorios → Retrofit (8081/8082) + Room caché + API externa aislada.
-- **Backend:** dos microservicios con H2 en archivo, seeders y CRUD; el backend genera historial y avisos.
+- **Lo que ya hay:** app Compose funcional, Room, login local, creación de trámites, firma simulada, corrección/reenvío, legibilidad obligatoria, logout, bandeja del notario y avisos. Además, dos microservicios Spring Boot con H2, seeders, CRUD y 11 pruebas.
+- **Lo que falta:** integrar la app con el backend mediante Retrofit, API externa, DELETE desde la UI, pruebas de la app con cobertura ≥ 80 %, APK firmado y README/Trello/evidencias.
+- **Arquitectura actual:** app → ViewModels → repositorios → Room. El backend funciona por separado y todavía no es fuente de verdad de la app.
+- **Arquitectura objetivo (Fase 3):** app → ViewModels → repositorios → Retrofit (8081/8082) + Room caché + API externa aislada.
+- **Backend:** implementado con dos microservicios, H2 en archivo, seeders y CRUD; genera historial y avisos.
 - **API externa:** Mindicador `GET /api`, tarjeta de UF en catálogo, fallback si falla.
 - **Pruebas:** JUnit + MockK + coroutines-test; cobertura ≥ 80 % en ViewModels/Repositorios/validación.
 - **Entrega:** `.jks` + `assembleRelease` + `apksigner`, README de 6 puntos, Trello, commits de ambos, AVA grupal e individual.

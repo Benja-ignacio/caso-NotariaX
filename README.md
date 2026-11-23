@@ -1,6 +1,6 @@
 # Notix — MVP de trámites notariales digitales
 
-Aplicación Android académica para el caso **NotariaX** (DSY1105, Duoc UC). Permite registrar usuarios, crear trámites notariales simulados, adjuntar un documento, enviarlos al notario, revisarlos y consultar su estado con historial y avisos.
+Aplicación Android académica para el caso **NotariaX** (DSY1105, Duoc UC). Permite registrar usuarios, crear trámites notariales simulados, adjuntar un documento, enviarlos al notario, revisarlos y consultar su estado con historial y avisos. Incluye además dos microservicios Spring Boot con API REST propia, todavía no conectados a la app.
 
 > ⚠️ Proyecto académico con **datos ficticios**. No realiza trámites notariales reales, no usa firmas reales, biometría real ni servicios de NotariaX.
 
@@ -23,8 +23,11 @@ Aplicación Android académica para el caso **NotariaX** (DSY1105, Duoc UC). Per
 | Corregir y reenviar tras devolución | ✅ |
 | Confirmación de legibilidad al aprobar | ✅ |
 | Logout Persona / Empresa / Notario | ✅ |
+| Microservicios Spring Boot `ms-usuarios` y `ms-tramites` | ✅ Implementados y probados por separado |
+| Integración app Android ↔ backend (Retrofit) | ❌ Pendiente (Fase 3) |
+| API externa visible en la app | ❌ Pendiente (Fase 3) |
 | Notificaciones del sistema | ❌ Pendiente |
-| Pruebas unitarias/UI | ⚠️ Solo de ejemplo |
+| Pruebas unitarias/UI de la app | ⚠️ Solo de ejemplo |
 
 ## Persistencia
 
@@ -40,7 +43,25 @@ Los datos **sobreviven al cierre de la app**. La sesión iniciada **no** se cons
 
 Todos los detalles están en [docs/Documentacion_Notix.md](docs/Documentacion_Notix.md#6-persistencia-de-datos-room).
 
-## Cómo ejecutar
+## Backend EP4 (Fase 2)
+
+El directorio [`backend/`](backend/README.md) contiene dos microservicios Spring Boot 4.2 con Java 21, Maven Wrapper, JPA e H2 persistente:
+
+| Servicio | Puerto | Contenido |
+|---|---|---|
+| `ms-usuarios` | `8081` | Registro, login y CRUD de usuarios |
+| `ms-tramites` | `8082` | Trámites, documentos, historial y avisos |
+
+```bash
+cd backend
+./mvnw test
+./mvnw spring-boot:run -pl ms-usuarios    # terminal 1
+./mvnw spring-boot:run -pl ms-tramites    # terminal 2
+```
+
+La app Android **aún no consume** estos servicios: Room sigue siendo su fuente de verdad hasta la Fase 3 (Retrofit). Contratos, endpoints y reglas de estado están en [`backend/README.md`](backend/README.md).
+
+## Cómo ejecutar la app
 
 Requisitos: Android Studio, JDK 21, SDK Android 37 y un emulador/dispositivo API 24+.
 
@@ -65,6 +86,9 @@ También se puede crear una cuenta desde la pantalla de registro.
 
 ```text
 caso-NotariaX/
+├── backend/       # Microservicios Spring Boot (Fase 2 EP4)
+│   ├── ms-usuarios/
+│   └── ms-tramites/
 ├── docs/          # Contexto, guía y documentación técnica
 ├── index.html     # Prototipo web legado (referencia)
 ├── views/         # Pantallas HTML del prototipo legado
@@ -79,6 +103,8 @@ caso-NotariaX/
 
 ## Tecnologías
 
-Kotlin · Jetpack Compose · Material 3 · Room · KSP · ViewModel · StateFlow · Coroutines.
+App: Kotlin · Jetpack Compose · Material 3 · Room · KSP · ViewModel · StateFlow · Coroutines.
 
-> Estado EP4: cerrada la Fase 1 de flujos (firma simulada, corrección/reenvío, legibilidad obligatoria, logout). Siguen pendientes microservicios Spring Boot, Retrofit, API externa, pruebas con cobertura ≥ 80 %, APK firmado y evidencias de entrega.
+Backend: Java 21 · Spring Boot 4.2 · Spring Web MVC · Spring Data JPA · H2 · Maven.
+
+> Estado EP4: cerradas la Fase 1 (flujos de la app) y la Fase 2 (microservicios Spring Boot). Siguen pendientes la integración con Retrofit, la API externa, las pruebas de la app con cobertura ≥ 80 %, el APK firmado y las evidencias de entrega.
