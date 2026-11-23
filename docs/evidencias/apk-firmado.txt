@@ -1,0 +1,23 @@
+Notix — Evidencia de APK firmado
+Fecha: 23-11-2026
+
+Archivo: Notix/app/build/outputs/apk/release/app-release.apk
+Versión: 1.0 (versionCode 1)
+Tamaño aproximado: 13 MB
+SHA-256: ee3cfb7595ca42fb3fb854210a77b56d19076b5650b2e04bfbc654b4682a318d
+
+Certificado:
+CN=Notix Team, OU=Notix, O=Notix, L=Chile, ST=Santiago, C=CL
+SHA-256 del certificado:
+e7944fb69fc3a3d77a2c3c7c1fb595d31254b4c21f73695f5cd45eb91e326e1e
+
+Comando de verificación:
+$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \
+  Notix/app/build/outputs/apk/release/app-release.apk
+
+Permisos comprobados:
+- android.permission.INTERNET
+- android.permission.POST_NOTIFICATIONS
+
+El APK y el keystore no se versionan en Git. El keystore se entrega por AVA
+o por un canal privado si el docente lo solicita.

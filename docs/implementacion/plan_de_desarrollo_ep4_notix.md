@@ -125,15 +125,15 @@ La rúbrica exige cubrir al menos el **80 % de la lógica** en módulos como `Vi
 ### Fase 5: APK Firmado, GitHub, Trello y Entrega AVA (`IE 3.3.1` y `IE 3.3.2` — 25 %)
 
 #### 5.1 Generación de APK Firmado
-- [ ] En Android Studio: **Build → Generate Signed App Bundle / APK... → APK**.
-- [ ] Crear KeyStore `notix_release.jks` y guardar contraseñas y alias.
-- [ ] Configurar `signingConfigs` y `buildTypes { release { ... } }` en `Notix/app/build.gradle.kts` usando ruta relativa al `.jks` (ej. `file("../keystore/notix_release.jks")`).
-- [ ] Incluir el archivo `app-release.apk` y el `.jks` dentro del repositorio y tomar captura de evidencia.
+- [x] Generar APK release firmado.
+- [x] Crear KeyStore `notix-release.jks` y guardar contraseñas y alias de forma privada.
+- [x] Configurar `signingConfigs` y `buildTypes { release { ... } }` en `Notix/app/build.gradle.kts`.
+- [ ] Subir/adjuntar `app-release.apk` y `.jks` a la entrega. **No versionarlos en GitHub**; entregarlos por AVA o canal privado.
 
 #### 5.2 GitHub, Trello y `README.md`
 - [ ] **Trello:** Tablero con tareas distribuidas entre ambos integrantes (*Por hacer*, *En progreso*, *En revisión*, *Terminado*).
-- [ ] **GitHub:** Repositorio público con acceso al docente, evidenciando commits técnicos reales de **ambos integrantes** tanto en la app móvil como en los microservicios.
-- [ ] **`README.md` raíz con los 6 apartados obligatorios:**
+- [ ] **GitHub:** Repositorio público con acceso al docente, evidenciando commits técnicos reales de **ambos integrantes** tanto en la app móvil como en los microservicios. Falta hacer push de los commits locales.
+- [x] **`README.md` raíz con los 6 apartados obligatorios:**
   1. Nombre del proyecto (`Notix — Caso NotariaX`)
   2. Integrantes
   3. Funcionalidades

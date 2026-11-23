@@ -63,7 +63,7 @@ caso-NotariaX/
 └── README.md
 ```
 
-El backend existe en `backend/` como proyecto Maven independiente con dos módulos (`ms-usuarios` y `ms-tramites`). El `settings.gradle.kts` de la app solo incluye `:app`, por lo que el backend no se construye con Gradle ni desde Android Studio. No se encontraron archivos fuente en `data/remote`, configuración Retrofit, `.jks`, APK de entrega ni evidencia versionada de Trello.
+El backend existe en `backend/` como proyecto Maven independiente con dos módulos (`ms-usuarios` y `ms-tramites`). El `settings.gradle.kts` de la app solo incluye `:app`, por lo que el backend no se construye con Gradle ni desde Android Studio. Existe configuración Retrofit en `data/remote/`, un APK release firmado localmente y un keystore en `Notix/notix-release.jks`; APK y keystore están ignorados por Git. No hay evidencia versionada de Trello ni enlaces AVA.
 
 ## 3. Tecnologías y configuración observadas
 

@@ -1,0 +1,87 @@
+# Evidencias de entrega — Notix
+
+> Carpeta para capturas y respaldos de la EP4. No inventar capturas ni datos del equipo.
+> El APK y el keystore no deben publicarse en GitHub.
+
+## Archivos esperados
+
+| Archivo | Contenido |
+|---|---|
+| `apk-firmado.png` | Captura de `apksigner verify` y del APK release |
+| `trello.png` | Captura del tablero Trello con columnas y tareas |
+| `cobertura.png` | Captura del reporte JaCoCo ≥ 80 % |
+| `commits.png` | Captura de commits de ambos integrantes en GitHub |
+| `ava-grupal.txt` | Enlace/confirmación de entrega grupal AVA |
+| `ava-individual.txt` | Confirmación de activación individual de ambos integrantes |
+
+## APK y keystore
+
+- APK local: `Notix/app/build/outputs/apk/release/app-release.apk`
+- Keystore local: `Notix/notix-release.jks`
+- Ambos están ignorados por Git.
+- Entregar el APK por AVA, Drive o GitHub Releases.
+- Entregar el keystore solo si el docente lo solicita, por un canal privado o AVA. Nunca en un enlace público.
+
+Comandos para generar la evidencia del APK:
+
+```bash
+cd Notix
+
+$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \
+  app/build/outputs/apk/release/app-release.apk
+
+sha256sum app/build/outputs/apk/release/app-release.apk
+
+$ANDROID_HOME/build-tools/36.0.0/aapt dump permissions \
+  app/build/outputs/apk/release/app-release.apk | grep POST_NOTIFICATIONS
+```
+
+## Trello
+
+El tablero debe tener, como mínimo:
+
+- **Por hacer**
+- **En progreso**
+- **En revisión**
+- **Terminado**
+
+Tareas sugeridas:
+
+1. Flujos Persona/Empresa.
+2. Firma simulada.
+3. Bandeja y revisión del notario.
+4. Corregir y reenviar.
+5. Perfil y logout.
+6. Microservicios Spring Boot.
+7. Integración Retrofit.
+8. API externa Nager.Date.
+9. DELETE desde la UI.
+10. Notificaciones locales.
+11. Pruebas y cobertura.
+12. APK firmado.
+13. Documentación y README.
+14. Evidencias y entrega AVA.
+
+## GitHub
+
+Comprobar:
+
+```bash
+git status
+git log --oneline -10
+git log --format='%h %an <%ae>' -10
+git push origin main
+```
+
+La entrega requiere commits de ambos integrantes y acceso del docente al repositorio.
+
+## AVA
+
+Antes de cerrar:
+
+- Subir código de app + backend.
+- Adjuntar APK firmado.
+- Adjuntar `.jks` solo si se solicita.
+- Adjuntar captura de Trello y cobertura.
+- Activar entrega individual de ambos integrantes.
+- No hacer commits después de la fecha límite.
