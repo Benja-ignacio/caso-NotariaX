@@ -16,7 +16,7 @@
 | `img/commits.png` | Captura de commits de todos los integrantes en GitHub |
 | `img/trello.png` | Tablero Trello |
 | `img/backend.png` | Ambos servicios respondiendo |
-| `img/login.png`, `img/firma-electronica.png`, `img/bandeja-notario.png`, `img/evaluacion-tramite.png`, `img/eliminar-tramite.png`, `img/notificaciones.png`, `img/perfil.png` | Flujo principal de la app |
+| `img/login.png`, `img/firma-electronica.png`, `img/bandeja-notario.png`, `img/evaluacion-tramite.png`, `img/eliminar-tramite.png`, `img/notificaciones.png`, `img/perfil.png`, `img/feriados-API.png` | Flujo principal de la app y API externa |
 | `img/ava-grupal.png` | Confirmación de entrega grupal AVA |
 | `img/ava-individual.png` | Confirmación de activación individual de todos los integrantes |
 

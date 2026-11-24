@@ -23,6 +23,7 @@ contenido del keystore ni datos personales reales.
 | `notificaciones.png` | Notificación local del sistema |
 | `permitir-notificaciones.png` | Permiso de notificaciones |
 | `perfil.png` | Perfil de usuario |
+| `feriados-API.png` | Tarjeta del próximo feriado de Nager.Date |
 | `observaciones.png` / `cerrar-sesion.png` | Flujo de observaciones y logout |
 | `ava-grupal.png` | Confirmación de entrega grupal AVA |
 | `ava-individual.png` | Confirmación individual de cada integrante |
