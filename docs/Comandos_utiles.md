@@ -458,6 +458,12 @@ APK:
 Notix/app/build/outputs/apk/release/app-release.apk
 ```
 
+Copia de entrega actual:
+
+```text
+~/Notix-1.0-release.apk
+```
+
 Verificar firma:
 
 ```bash

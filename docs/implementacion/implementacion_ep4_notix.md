@@ -100,9 +100,9 @@ Estos puntos no están explícitos en el plan, pero si no se corrigen, la integr
    - `onVerTramite` está vacío.
    - **Acción pendiente:** `SessionManager`, `BackHandler` y logout persistente. El logout en memoria ya está conectado para los tres perfiles.
 
-6. **Los IDs de trámites se generan con `(1000..9999).random()`.**
-   - Pueden colisionar.
-   - **Acción:** que el backend genere el ID y que la app use el ID devuelto.
+6. **IDs de trámites (resuelto).**
+   - El backend genera IDs `TX-2026-XXXX` y la app usa el ID devuelto.
+   - El ID local aleatorio de la app ya no se utiliza.
 
 7. **El seeder local puede competir con el backend.**
    - `DatabaseSeeder.seedIfEmpty()` inserta usuarios y trámites locales al iniciar.
@@ -128,7 +128,7 @@ Estos puntos no están explícitos en el plan, pero si no se corrigen, la integr
 | **IE 3.1.4** API externa integrada visualmente | 15 % | Consumo correcto y visible, sin interferir con lo propio | Nager.Date en `CatalogoFormatosScreen`, `runCatching`, tarjeta con próximo feriado y fallback. |
 | **IE 3.2.1** Pruebas unitarias ≥ 80 % | 15 % | JUnit/MockK, funcionales, cobertura verificable | Suites de `RutValidator`, repositorios y ViewModels; evidencia con cobertura. |
 | **IE 3.3.1** APK firmado | 10 % | `.jks`, `signingConfigs`, APK funcional | KeyStore, configuración Gradle, `assembleRelease`, verificación con `apksigner`. |
-| **IE 3.3.2** GitHub/Trello/colaboración | 15 % | Commits técnicos de ambos, tareas distribuidas | Ramas, commits por integrante en app y backend, tablero Trello, README de 6 puntos. |
+| **IE 3.3.2** GitHub/Trello/colaboración | 15 % | Commits técnicos de todos los integrantes, tareas distribuidas | Commits por integrante en app y backend, tablero Trello, README de 6 puntos y capturas. |
 
 > Regla crítica del PDF: si el proyecto no se ejecuta en la defensa, los ítems posteriores se califican con 0. La prioridad absoluta es que `assembleDebug` y los dos microservicios arranquen sin errores antes de agregar extras.
 
@@ -1275,7 +1275,7 @@ fun cerrarSesion() {
 
 > ✅ **Implementado:** botón “Eliminar trámite” en el detalle, solo para estados no finalizados. Pide confirmación, llama a `DELETE /api/tramites/{id}` y borra en Room el trámite, documentos, historial y avisos. Verificado en dispositivo físico.
 
-**Motivo:** la pauta exige operaciones CRUD desde la interfaz. Actualmente no hay ninguna acción de borrado.
+**Motivo:** la pauta exige operaciones CRUD desde la interfaz. La acción está disponible para trámites no finalizados; un `FINALIZADO` responde `409`.
 
 **UI**
 
@@ -1479,54 +1479,46 @@ Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html
 
 ## 11. APK firmado
 
+> **Estado real:** el APK release ya fue generado y verificado. El keystore está en `Notix/notix-release.jks` y las contraseñas se leen de `NOTIX_KEYSTORE`, `NOTIX_STORE_PASSWORD` y `NOTIX_KEY_PASSWORD`. El alias es `notix`. El keystore y el APK **no se versionan**. Las secciones 11.1–11.4 describen el procedimiento; 11.5 se corrigió para no subir secretos.
+
 ### 11.1 Crear el KeyStore
 
 ```bash
 cd Notix
-mkdir -p keystore
 keytool -genkeypair -v \
-  -keystore keystore/notix_release.jks \
+  -keystore notix-release.jks \
   -alias notix \
   -keyalg RSA \
   -keysize 2048 \
   -validity 10000
 ```
 
-Guardar contraseñas y alias. Para la entrega académica se pueden documentar en `keystore.properties`.
+El keystore y sus contraseñas se guardan fuera de Git.
 
-### 11.2 `keystore.properties`
+### 11.2 Variables de entorno
 
-Crear en `Notix/keystore.properties`:
+La configuración actual lee:
 
-```properties
-storeFile=keystore/notix_release.jks
-storePassword=TU_CLAVE
-keyAlias=notix
-keyPassword=TU_CLAVE
+```bash
+export NOTIX_KEYSTORE="$PWD/notix-release.jks"
+export NOTIX_STORE_PASSWORD='...'
+export NOTIX_KEY_PASSWORD='...'
 ```
+
+No se usa `keystore.properties` en la implementación actual.
 
 ### 11.3 Configurar `Notix/app/build.gradle.kts`
 
 ```kotlin
-import java.util.Properties
-
-val keystorePropsFile = rootProject.file("keystore.properties")
-val keystoreProps = Properties().apply {
-    if (keystorePropsFile.exists()) {
-        keystorePropsFile.inputStream().use { load(it) }
-    }
-}
-
 android {
-    // ...
     signingConfigs {
         create("release") {
-            if (keystorePropsFile.exists()) {
-                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
-                storePassword = keystoreProps.getProperty("storePassword")
-                keyAlias = keystoreProps.getProperty("keyAlias")
-                keyPassword = keystoreProps.getProperty("keyPassword")
-            }
+            storeFile = rootProject.file(
+                System.getenv("NOTIX_KEYSTORE") ?: "notix-release.jks"
+            )
+            storePassword = System.getenv("NOTIX_STORE_PASSWORD")
+            keyAlias = "notix"
+            keyPassword = System.getenv("NOTIX_KEY_PASSWORD")
         }
     }
 
@@ -1540,8 +1532,6 @@ android {
     }
 }
 ```
-
-> Mantener el bloque `optimization` que ya existe en el proyecto. Si AGP 9 rechaza alguna propiedad, ejecutar `./gradlew :app:assembleRelease` y ajustar solo lo que marque el error.
 
 ### 11.4 Generar y verificar
 
@@ -1569,20 +1559,16 @@ $ANDROID_HOME/build-tools/<version>/apksigner verify --print-certs \
   app/build/outputs/apk/release/app-release.apk
 ```
 
-### 11.5 Incluir en el repositorio
+### 11.5 Entrega del APK y keystore
 
-La pauta pide el `.jks` y el APK. Para esta entrega académica:
+**No versionar** el `.jks`, `keystore.properties` ni contraseñas en GitHub.
 
-- Incluir `Notix/keystore/notix_release.jks`.
-- Incluir `Notix/keystore.properties` (o documentar las credenciales en el README si se prefiere no versionarlo).
-- Incluir el APK en `Notix/app/build/outputs/apk/release/app-release.apk` o en una carpeta `entregables/`.
-- Si `.gitignore` bloquea `*.jks`, agregar una excepción:
+- El APK firmado se entrega por AVA, Drive o GitHub Releases.
+- El `.jks` se entrega solo si el docente lo solicita, por AVA o canal privado.
+- El APK local de esta entrega está en `~/Notix-1.0-release.apk`.
+- El keystore local está en `Notix/notix-release.jks` y está ignorado por Git.
 
-```gitignore
-!Notix/keystore/notix_release.jks
-```
-
-> Advertencia: en un proyecto real nunca se versiona una llave privada ni contraseñas. Aquí se hace solo porque la pauta lo exige y la llave es de demostración.
+> La pauta puede pedir el keystore como evidencia, pero no significa publicarlo. Entregarlo de forma privada es la opción segura.
 
 ### 11.6 Evidencia
 
@@ -1600,10 +1586,10 @@ Capturas para `docs/evidencias/`:
 
 ### 12.1 README raíz — 6 apartados obligatorios
 
-El `README.md` actual no cumple la estructura EP4. Reemplazarlo o ampliarlo con:
+El `README.md` ya fue actualizado con la estructura EP4:
 
 1. **Nombre del proyecto:** `Notix — Caso NotariaX`.
-2. **Integrantes:** nombre y apellido de ambos.
+2. **Integrantes:** Benjamin, Juan Alonso Parra Verdejo y Vicente Vergara.
 3. **Funcionalidades:** login/registro, catálogo, creación, firma simulada, bandeja, aprobar/devolver, corregir/reenviar, avisos, API externa, cancelar.
 4. **Endpoints utilizados:**
    - API externa: `GET https://date.nager.at/api/v3/NextPublicHolidays/CL`.
@@ -1622,8 +1608,11 @@ Agregar además:
 - Advertencia de datos ficticios.
 - Limitaciones (HTTP sin cifrar, contraseñas de demo, firma simulada).
 - Enlace al tablero Trello.
+- Captura de evidencias en `docs/evidencias/img/`.
 
 ### 12.2 Trello
+
+> Hay una captura del tablero en `docs/evidencias/img/trello.png`. Falta pegar el enlace público si el docente lo solicita.
 
 Tablero con columnas:
 
@@ -1676,7 +1665,7 @@ build(app): configura signingConfigs y genera APK release
 docs: agrega README EP4 y evidencias
 ```
 
-- **Ambos integrantes deben tener commits en la app y en el backend.** La pauta lo pide explícitamente.
+- **Todos los integrantes deben tener commits en la app y en el backend.** La pauta lo pide explícitamente.
 - No hacer commits después de la fecha límite.
 
 ### 12.4 AVA
@@ -1729,7 +1718,7 @@ docs: agrega README EP4 y evidencias
 - [ ] El APK release está firmado y verificado.
 - [ ] El README tiene los 6 apartados.
 - [ ] Trello tiene tareas distribuidas y evidencia.
-- [ ] Ambos integrantes tienen commits en app y backend.
+- [ ] Todos los integrantes tienen commits en app y backend.
 - [ ] Repositorio congelado antes del plazo.
 
 ### 14.2 Guion de demo (5–7 minutos)
@@ -1763,7 +1752,7 @@ docs: agrega README EP4 y evidencias
 | Riesgo | Probabilidad | Mitigación |
 |---|---|---|
 | El emulador no conecta a `localhost` | Alta | Usar `10.0.2.2`; documentar IP LAN para teléfono físico. |
-| Falta permiso de Internet o cleartext | Alta | Agregar `INTERNET` y `usesCleartextTraffic="true"`. |
+| Permiso de Internet o cleartext | Resuelto | `INTERNET` y `usesCleartextTraffic="true"` ya están en el manifest. |
 | El backend no está corriendo en la defensa | Media | Script de arranque, README claro y datos demo. Probar en frío. |
 | Room borra datos por cambio de esquema | Media | Es caché; el backend es la fuente de verdad. Documentar. |
 | MockK falla con Kotlin 2.2 | Media | Subir MockK a 1.14.x si hay error de metadatos. |
@@ -1791,8 +1780,8 @@ docs: agrega README EP4 y evidencias
 | `Notix/app/src/main/java/com/duoc/notix/ui/components/FirmaSimuladaDialog.kt` | Firma Canvas/e-token/notariada. |
 | `Notix/app/src/main/java/com/duoc/notix/ui/components/CorreccionTramiteDialog.kt` | Corregir y reenviar. |
 | `Notix/app/src/test/java/com/duoc/notix/**` | Suites unitarias. |
-| `Notix/keystore/notix_release.jks` | Llave de firma. |
-| `Notix/keystore.properties` | Credenciales de firma (académico). |
+| `Notix/notix-release.jks` | Llave de firma local; no versionada. |
+| `NOTIX_*` | Variables de entorno para las contraseñas de firma. |
 | `docs/evidencias/**` | Capturas de APK, cobertura, Trello y demo. |
 
 ### 16.2 Modificados
@@ -1857,7 +1846,7 @@ docs: agrega README EP4 y evidencias
 ## 18. Resumen de una página
 
 - **Lo que ya hay:** app Compose funcional, Room como caché, login/registro y trámites contra el backend, firma simulada, corrección/reenvío, legibilidad obligatoria, logout, bandeja del notario, avisos, Retrofit y API externa del próximo feriado. Además, dos microservicios Spring Boot con H2, seeders, CRUD y 11 pruebas.
-- **Lo que falta:** notificaciones con la app cerrada (WorkManager/FCM), resolución de conflictos de sincronización, pruebas de UI/instrumentadas, verificación del APK firmado y README/Trello/evidencias.
+- **Lo que falta:** notificaciones con la app cerrada (WorkManager/FCM), resolución de conflictos de sincronización, pruebas de UI, push a GitHub y confirmaciones AVA.
 - **Arquitectura actual:** app → ViewModels → repositorios → Retrofit (8081/8082) + Room caché + Retrofit Nager.Date.
 - **Backend:** implementado con dos microservicios, H2 en archivo, seeders y CRUD; genera historial y avisos.
 - **API externa:** Nager.Date `NextPublicHolidays/CL`, tarjeta del próximo feriado, fallback si falla.

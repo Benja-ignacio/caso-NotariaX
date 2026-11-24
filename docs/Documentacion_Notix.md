@@ -491,7 +491,7 @@ Esto significa que Android **podría respaldar la base de datos** según las reg
 - **Cobertura de línea: 96,30 %**. Cobertura de ramas: 74,93 %.
 - JaCoCo genera HTML/XML y `jacocoTestCoverageVerification` falla si la línea baja de 80 %.
 - Reporte: `Notix/app/build/reports/jacoco/jacocoTestReport/html/index.html`.
-- Pendiente: pruebas de UI/instrumentadas.
+- Pendiente: pruebas de UI.
 - Comando DAO: `./gradlew :app:connectedDebugAndroidTest`.
 
 ### 7.8 Notificaciones locales
@@ -656,9 +656,10 @@ Ordenados por impacto para la rúbrica y el flujo principal.
     - Revisar nombres de archivo: `AuthViewmodel.kt` vs `AuthViewModel`, `TramitesViewmodel.kt`.
 
 13. **Pruebas**
-    - ✅ Pruebas unitarias de `RutValidator`, repositorios, mappers, fechas y ViewModels (77 en total).
+    - ✅ 82 pruebas JVM de `RutValidator`, repositorios, mappers, fechas y ViewModels.
+    - ✅ 7 pruebas DAO instrumentadas con Room.
     - ✅ Cobertura de línea 96,30 % con JaCoCo y umbral mínimo de 80 %.
-    - Pendiente: pruebas de DAO/instrumentadas y pruebas de UI para login, creación y revisión.
+    - Pendiente: pruebas de UI para login, creación y revisión.
 
 14. **Limpieza**
     - Eliminar `.idea/`, `build/` y archivos generados del control de versiones si no son necesarios.
@@ -796,8 +797,8 @@ Estado tras las Fases 1, 2, 3 y 4 de la EP4 (23-11-2026): flujos de la app, micr
 1. Guardar el **documento adjunto** de forma persistente (hoy solo metadatos).
 2. Agregar **notificaciones en segundo plano** con WorkManager o FCM.
 3. Completar el **botón atrás** y la sesión persistente (el perfil y el logout ya están conectados).
-4. Agregar **pruebas de UI/instrumentadas**; las 82 JVM y 7 DAO no cubren la interfaz.
-5. Verificar el **APK firmado** y completar README/Trello/evidencias de entrega.
+4. Agregar **pruebas de UI**; las 82 JVM y 7 DAO no cubren la interfaz.
+5. Adjuntar el **APK firmado** y las confirmaciones AVA; el README, la captura de Trello y las evidencias ya están preparados.
 
 ---
 

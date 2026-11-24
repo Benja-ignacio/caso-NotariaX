@@ -1,7 +1,8 @@
 Notix — Evidencia de APK firmado
 Fecha: 23-11-2026
 
-Archivo: Notix/app/build/outputs/apk/release/app-release.apk
+Archivo: /home/seiiwl/Notix-1.0-release.apk
+Ruta generada: Notix/app/build/outputs/apk/release/app-release.apk
 Versión: 1.0 (versionCode 1)
 Tamaño aproximado: 13 MB
 SHA-256: f012f8317fda598bf1ef4139c14efd616f8db26e9e06698a1d24fd9f8b9e9ccb
@@ -13,7 +14,7 @@ e7944fb69fc3a3d77a2c3c7c1fb595d31254b4c21f73695f5cd45eb91e326e1e
 
 Comando de verificación:
 $ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \
-  Notix/app/build/outputs/apk/release/app-release.apk
+  "$HOME/Notix-1.0-release.apk"
 
 Permisos comprobados:
 - android.permission.INTERNET

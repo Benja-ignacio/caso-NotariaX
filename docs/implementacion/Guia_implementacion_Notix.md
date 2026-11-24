@@ -2,7 +2,7 @@
 
 > **Documento histórico / plan de trabajo.** Describe el proyecto en una etapa anterior.
 > Para conocer el estado real, la arquitectura y la persistencia implementada, ver
-> [`Documentacion_Notix.md`](Documentacion_Notix.md).
+> [`../Documentacion_Notix.md`](../Documentacion_Notix.md).
 
 ## Objetivo
 

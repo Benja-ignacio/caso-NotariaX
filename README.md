@@ -172,7 +172,8 @@ Estado actual del APK release:
 
 | Dato | Valor |
 |---|---|
-| Archivo local | `Notix/app/build/outputs/apk/release/app-release.apk` |
+| Archivo local | `~/Notix-1.0-release.apk` (copia de entrega) |
+| Ruta al regenerar | `Notix/app/build/outputs/apk/release/app-release.apk` |
 | Versión | `1.0` (`versionCode 1`) |
 | Certificado | `CN=Notix Team, OU=Notix, O=Notix, L=Chile, ST=Santiago, C=CL` |
 | SHA-256 del APK | `f012f8317fda598bf1ef4139c14efd616f8db26e9e06698a1d24fd9f8b9e9ccb` |
@@ -183,7 +184,7 @@ Verificación:
 
 ```bash
 $ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \
-  Notix/app/build/outputs/apk/release/app-release.apk
+  "$HOME/Notix-1.0-release.apk"
 ```
 
 > El APK y el `.jks` **no se versionan** en el repositorio. Se entregan en AVA o por un enlace privado. No publicar el keystore ni sus contraseñas.

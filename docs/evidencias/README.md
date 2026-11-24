@@ -22,7 +22,8 @@
 
 ## APK y keystore
 
-- APK local: `Notix/app/build/outputs/apk/release/app-release.apk`
+- APK local de entrega: `~/Notix-1.0-release.apk`
+- Ruta generada: `Notix/app/build/outputs/apk/release/app-release.apk`
 - Keystore local: `Notix/notix-release.jks`
 - Ambos están ignorados por Git.
 - Entregar el APK por AVA, Drive o GitHub Releases.
@@ -34,12 +35,12 @@ Comandos para generar la evidencia del APK:
 cd Notix
 
 $ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \
-  app/build/outputs/apk/release/app-release.apk
+  "$HOME/Notix-1.0-release.apk"
 
-sha256sum app/build/outputs/apk/release/app-release.apk
+sha256sum "$HOME/Notix-1.0-release.apk"
 
 $ANDROID_HOME/build-tools/36.0.0/aapt dump permissions \
-  app/build/outputs/apk/release/app-release.apk | grep POST_NOTIFICATIONS
+  "$HOME/Notix-1.0-release.apk" | grep POST_NOTIFICATIONS
 ```
 
 ## Trello

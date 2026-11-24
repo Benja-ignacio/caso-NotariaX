@@ -63,7 +63,7 @@ caso-NotariaX/
 └── README.md
 ```
 
-El backend existe en `backend/` como proyecto Maven independiente con dos módulos (`ms-usuarios` y `ms-tramites`). El `settings.gradle.kts` de la app solo incluye `:app`, por lo que el backend no se construye con Gradle ni desde Android Studio. Existe configuración Retrofit en `data/remote/`, un APK release firmado localmente y un keystore en `Notix/notix-release.jks`; APK y keystore están ignorados por Git. No hay evidencia versionada de Trello ni enlaces AVA.
+El backend existe en `backend/` como proyecto Maven independiente con dos módulos (`ms-usuarios` y `ms-tramites`). El `settings.gradle.kts` de la app solo incluye `:app`, por lo que el backend no se construye con Gradle ni desde Android Studio. Existe configuración Retrofit en `data/remote/`, un APK release firmado localmente y un keystore en `Notix/notix-release.jks`; APK y keystore están ignorados por Git. Hay capturas de Trello y commits en `docs/evidencias/img/`; faltan los enlaces/confirmaciones de AVA y hacer push de los commits locales.
 
 ## 3. Tecnologías y configuración observadas
 
@@ -112,7 +112,7 @@ El backend existe en `backend/` como proyecto Maven independiente con dos módul
 
 ### 5.2 Autenticación local
 
-`AuthRepository` usa `UsuariosApi` para login/registro y guarda el usuario en `UsuarioDao`. Si falla la red, el login puede validar contra la copia local. Normaliza el correo y el backend valida tipo de cuenta, clave y duplicados. `LoginViewModel` y `AuthViewModel` extienden `AndroidViewModel` y crean `NotixDatabase`/repositorio internamente; no reciben dependencias por constructor. Esto dificulta pruebas unitarias JVM aisladas y debe considerarse al diseñar los tests.
+`AuthRepository` usa `UsuariosApi` para login/registro y guarda el usuario en `UsuarioDao`. Si falla la red, el login puede validar contra la copia local. Normaliza el correo y el backend valida tipo de cuenta, clave y duplicados. `LoginViewModel` y `AuthViewModel` reciben `AuthRepository` por constructor y exponen una factory para crear la base desde un `Context`; esto permite probarlos con MockK sin instanciar Room.
 
 Las contraseñas se guardan en texto plano en Room para la demo. No reutilizar esa implementación como autenticación de producción. Los usuarios ficticios se siembran desde `DatabaseSeeder` al iniciar `MainActivity`.
 
@@ -121,14 +121,14 @@ Las contraseñas se guardan en texto plano en Room para la demo. No reutilizar e
 - El catálogo actual tiene tres formatos: `F01` Poder simple (`SIMPLE`), `F02` Declaración jurada simple (`AVANZADA`) y `F03` Autorización de viaje (`NOTARIADA`).
 - `CrearTramiteViewModel` completa antecedentes desde el usuario, valida RUN usando `RutValidator`, exige nombre, correo de forma superficial (`@`) y comuna.
 - El selector de archivos usa `ActivityResultContracts.GetContent`; la app conserva el nombre del archivo como metadato, no el contenido ni una URI persistente. Si no se selecciona uno, el ViewModel inventa un nombre PDF de demostración. Por tanto, la app actualmente no exige seleccionar un documento real.
-- El ID se genera localmente con `TX-2026-${(1000..9999).random()}`; puede colisionar y no proviene de un backend.
+- El ID lo genera el backend con formato `TX-2026-XXXX`; la app ya no genera IDs locales.
 - Al crear se exige completar el paso de firma simulada según `TipoFirma`: trazo en `Canvas` (`SIMPLE_CANVAS`), código de 6 dígitos (`AVANZADA_TOKEN_SIMULADO`) o autorización notarial (`NOTARIADA_SIMULADA`). La evidencia se guarda en `Tramite.firmaEvidencia`.
-- Al crear se inserta el trámite, documentos e historial en Room y se agrega aviso local. No hay transmisión remota.
+- Al crear, la app llama a `POST /api/tramites`; el backend genera ID, historial inicial y aviso. La respuesta se guarda en Room.
 - Mis Trámites y Bandeja del Notario observan `Flow` de Room y presentan filtros/contadores. Ordenan por ID descendente, no por fecha.
 - El notario solo puede actuar sobre trámites `ENVIADO`. Aprobar exige marcar el checkbox de legibilidad y persiste `legibilidadConfirmada = true`; devolver exige observación no vacía. El repositorio también rechaza transiciones inválidas.
 - Un trámite `DEVUELTO` puede corregirse y reenviarse desde el detalle de la persona: se editan antecedentes, se exige reemplazar documentos `OBSERVADO`, se limpia la observación, vuelve a `ENVIADO` y se registran historial, aviso y `legibilidadConfirmada = false`.
 - Las operaciones de cambio de estado y reenvío usan transacciones de Room para trámite, documentos, historial y aviso.
-- No hay acción para cancelar/eliminar un trámite desde la UI.
+- La persona puede eliminar un trámite no finalizado desde el detalle: se pide confirmación, se llama a `DELETE /api/tramites/{id}` y se borra localmente el trámite, documentos, historial y avisos. Un `FINALIZADO` no se puede eliminar.
 
 ### 5.4 Base de datos Room
 
@@ -200,8 +200,8 @@ La guía EP4 contiene propuestas, pero algunos diagnósticos deben verificarse c
 | Confirmación de legibilidad al aprobar | Implementada en diálogo, ViewModel y repositorio |
 | DELETE/cancelación desde UI | Implementado con confirmación y borrado local; backend y app coherentes |
 | Tests de lógica y cobertura ≥80 % | 82 pruebas unitarias JVM, 96,30 % de línea, 7 pruebas DAO y umbral JaCoCo de 80 %. El backend tiene 11 pruebas propias |
-| APK firmado y `.jks` | No encontrados; Gradle no tiene `signingConfigs` |
-| README EP4, Trello y colaboración | El README existente no reemplaza la evidencia requerida; confirmar y completar puntos faltantes con datos reales del equipo |
+| APK firmado y `.jks` | APK release firmado localmente y keystore en `Notix/notix-release.jks`; no se versionan en Git |
+| README EP4, Trello y colaboración | README con 6 apartados; capturas de Trello y commits; falta push y confirmaciones AVA |
 
 La EP4 requiere app funcional integrada, microservicios con BD y endpoints, integración CRUD, API externa visible, pruebas con cobertura mínima del 80 %, APK firmado y evidencia GitHub/Trello. La app ya consume los microservicios con Retrofit, muestra el próximo feriado de Nager.Date, elimina trámites no finalizados, tiene notificaciones locales y 96,30 % de cobertura de línea; quedan notificaciones con app cerrada, pruebas de UI y evidencias de entrega. La pauta PDF es la fuente normativa.
 

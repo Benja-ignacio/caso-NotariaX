@@ -8,7 +8,7 @@
 
 ## 1. Mapa de Evolución de Arquitectura
 
-La **app Notix** puede seguir mostrando la última copia local con Room, pero desde la Fase 3 consume los microservicios de `backend/` con Retrofit. La arquitectura evolucionó al siguiente esquema (la sesión persistente y el APK firmado siguen pendientes):
+La **app Notix** puede seguir mostrando la última copia local con Room, pero desde la Fase 3 consume los microservicios de `backend/` con Retrofit. La arquitectura evolucionó al siguiente esquema (el APK ya está firmado; siguen pendientes la sesión persistente, el push y las confirmaciones AVA):
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -131,8 +131,8 @@ La rúbrica exige cubrir al menos el **80 % de la lógica** en módulos como `Vi
 - [ ] Subir/adjuntar `app-release.apk` y `.jks` a la entrega. **No versionarlos en GitHub**; entregarlos por AVA o canal privado.
 
 #### 5.2 GitHub, Trello y `README.md`
-- [ ] **Trello:** Tablero con tareas distribuidas entre ambos integrantes (*Por hacer*, *En progreso*, *En revisión*, *Terminado*).
-- [ ] **GitHub:** Repositorio público con acceso al docente, evidenciando commits técnicos reales de **ambos integrantes** tanto en la app móvil como en los microservicios. Falta hacer push de los commits locales.
+- [x] **Trello:** Tablero con tareas distribuidas entre todos los integrantes; evidencia en `docs/evidencias/img/trello.png` (*Por hacer*, *En progreso*, *En revisión*, *Terminado*).
+- [ ] **GitHub:** Repositorio público con acceso al docente, evidenciando commits técnicos reales de **todos los integrantes** tanto en la app móvil como en los microservicios. Falta hacer push de los commits locales.
 - [x] **`README.md` raíz con los 6 apartados obligatorios:**
   1. Nombre del proyecto (`Notix — Caso NotariaX`)
   2. Integrantes
@@ -146,5 +146,5 @@ La rúbrica exige cubrir al menos el **80 % de la lógica** en módulos como `Vi
 ## 3. Checklist Final de Entrega (AVA)
 
 - [ ] **Enlace Grupal AVA:** Subido por un integrante con todo el código fuente (app + microservicios), APK firmado, `.jks` y evidencia de Trello.
-- [ ] **Enlace Individual AVA:** Activado por **ambos integrantes** con nombre, apellido, número de equipo y nombre de la aplicación *(no activarlo implica nota 1.0 individual)*.
+- [ ] **Enlace Individual AVA:** Activado por **todos los integrantes** con nombre, apellido, número de equipo y nombre de la aplicación *(no activarlo implica nota 1.0 individual)*.
 - [ ] **Congelamiento de repositorio:** No realizar **ningún commit** después de la fecha y hora límite *(cualquier cambio posterior asigna nota 1.0 grupal e individual automáticamente)*.
