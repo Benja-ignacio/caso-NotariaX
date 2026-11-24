@@ -321,7 +321,43 @@ adb reverse --list
 
 La app detecta el dispositivo físico y usa `127.0.0.1`.
 
-Si se desconecta y reconecta el teléfono, repetir los `adb reverse`.
+`adb reverse --list` debe mostrar ambos puertos:
+
+```text
+UsbFfs tcp:8081 tcp:8081
+UsbFfs tcp:8082 tcp:8082
+```
+
+Si la lista está vacía, la app no podrá conectarse aunque el backend esté corriendo.
+
+**El reverse se pierde al desconectar el teléfono, reiniciar el equipo o reiniciar ADB.** Repetir:
+
+```bash
+adb reverse tcp:8081 tcp:8081
+adb reverse tcp:8082 tcp:8082
+adb reverse --list
+```
+
+Si hay varios dispositivos conectados, usar el número de serie:
+
+```bash
+adb devices
+adb -s R5GL916XP0P reverse tcp:8081 tcp:8081
+adb -s R5GL916XP0P reverse tcp:8082 tcp:8082
+```
+
+Después de agregar el reverse, reiniciar la app:
+
+```bash
+adb shell am force-stop com.duoc.notix
+adb shell am start -n com.duoc.notix/.MainActivity
+```
+
+Si sigue fallando, revisar logs:
+
+```bash
+adb logcat -d | grep -iE "okhttp|ConnectException|Sin conexión|CLEARTEXT"
+```
 
 ### Dispositivo físico por Wi-Fi
 
@@ -494,8 +530,11 @@ Aceptar el diálogo de depuración USB en el teléfono.
 
 1. Verificar `curl` desde el PC.
 2. En emulador, confirmar `10.0.2.2`.
-3. En dispositivo físico, ejecutar `adb reverse`.
-4. Revisar firewall.
+3. En dispositivo físico, ejecutar `adb reverse tcp:8081 tcp:8081` y `adb reverse tcp:8082 tcp:8082`.
+4. Confirmar con `adb reverse --list` que aparezcan ambos puertos.
+5. Reiniciar la app con `adb shell am force-stop com.duoc.notix` y volver a abrirla.
+6. Revisar `adb logcat -d | grep -iE "okhttp|ConnectException|CLEARTEXT"`.
+7. Revisar firewall solo si se usa la IP LAN en lugar de `adb reverse`.
 
 ### El emulador falla con `SIGSEGV`
 
