@@ -11,8 +11,12 @@
 | `img/keystore.png` | Existencia y alias del keystore, sin contraseñas |
 | `img/trello.png` | Captura del tablero Trello con columnas y tareas |
 | `img/cobertura.png` | Captura del reporte JaCoCo ≥ 80 % |
-| `img/tests.png` | Pruebas JVM y DAO sin fallos |
+| `img/jvm-tests.png` | Pruebas JVM sin fallos |
+| `img/dao-tests.png` | Pruebas DAO instrumentadas sin fallos |
 | `img/commits.png` | Captura de commits de todos los integrantes en GitHub |
+| `img/trello.png` | Tablero Trello |
+| `img/backend.png` | Ambos servicios respondiendo |
+| `img/login.png`, `img/firma-electronica.png`, `img/bandeja-notario.png`, `img/evaluacion-tramite.png`, `img/eliminar-tramite.png`, `img/notificaciones.png`, `img/perfil.png` | Flujo principal de la app |
 | `img/ava-grupal.png` | Confirmación de entrega grupal AVA |
 | `img/ava-individual.png` | Confirmación de activación individual de todos los integrantes |
 
