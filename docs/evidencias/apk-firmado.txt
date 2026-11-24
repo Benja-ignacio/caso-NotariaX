@@ -4,7 +4,7 @@ Fecha: 23-11-2026
 Archivo: Notix/app/build/outputs/apk/release/app-release.apk
 Versión: 1.0 (versionCode 1)
 Tamaño aproximado: 13 MB
-SHA-256: ee3cfb7595ca42fb3fb854210a77b56d19076b5650b2e04bfbc654b4682a318d
+SHA-256: f012f8317fda598bf1ef4139c14efd616f8db26e9e06698a1d24fd9f8b9e9ccb
 
 Certificado:
 CN=Notix Team, OU=Notix, O=Notix, L=Chile, ST=Santiago, C=CL
@@ -18,6 +18,8 @@ $ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \
 Permisos comprobados:
 - android.permission.INTERNET
 - android.permission.POST_NOTIFICATIONS
+
+Este APK fue regenerado después de agregar el icono personalizado.
 
 El APK y el keystore no se versionan en Git. El keystore se entrega por AVA
 o por un canal privado si el docente lo solicita.
